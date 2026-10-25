@@ -1,0 +1,62 @@
+:root {
+  /* Brand core */
+  --color-brand-blue: #1e63d6;
+  --color-learning-teal: #21c7c4;
+  --color-sky-blue: #4da3ff;
+  --color-energy-orange: #ff8a00;
+  --color-deep-navy: #0a1f44;
+  --color-innovation-violet: #7c4dff;
+  --color-rose-gold: #f4b6a6;
+  --color-lavender-light: #e9e3ff;
+  --color-bg-light: #f6f8fc;
+
+  /* Semantic — light mode */
+  --bg-primary: #f6f8fc;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #eef3fa;
+  --border-color: #e1e7f0;
+  --border-subtle: #edf1f7;
+  --text-primary: #0a1f44;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #0a1f44 0%, #1e63d6 55%, #21c7c4 100%);
+  --gradient-ai: linear-gradient(135deg, #7c4dff 0%, #b388ff 100%);
+  --gradient-hero: linear-gradient(135deg, #1e63d6 0%, #4da3ff 45%, #7c4dff 100%);
+  --gradient-rose-gold: linear-gradient(135deg, #f4b6a6 0%, #fde7df 100%);
+
+  /* Spacing & radii */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Type */
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Jost', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
+
+  /* Elevation */
+  --shadow-bento: 0 12px 32px -16px rgb(10 31 68 / 0.18), 0 2px 6px -2px rgb(10 31 68 / 0.06);
+  --shadow-bento-lg: 0 28px 60px -28px rgb(10 31 68 / 0.28), 0 4px 12px -4px rgb(10 31 68 / 0.08);
+}
+
+[data-theme='dark'] {
+  --bg-primary: #081221;
+  --bg-surface: #111a2e;
+  --bg-surface-alt: #16213a;
+  --border-color: #253253;
+  --border-subtle: #1c2947;
+  --text-primary: #eef3ff;
+  --text-secondary: #a8b4cc;
+  --text-muted: #7c8aa5;
+}

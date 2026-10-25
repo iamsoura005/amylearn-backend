@@ -1,0 +1,64 @@
+{
+  "name": "amylearn-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AmyLearn backend — multi-tenant academic platform API",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "seed": "node seed_campus.js",
+    "seed:minimal": "node scripts/seed.js",
+    "seed:full": "node scripts/seed_full_campus.js",
+    "db:local": "node scripts/db-local.js",
+    "dev-db": "node scripts/dev-db.js",
+    "test": "node scripts/runTests.js",
+    "verify": "node scripts/runTests.js",
+    "e2e": "node scripts/e2e-features.js",
+    "compare": "node scripts/compare_endpoints.js",
+    "audit": "node scripts/audit_map.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@prisma/client": "5.22.0",
+    "@sendgrid/mail": "^8.1.4",
+    "adm-zip": "^0.6.1",
+    "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "docx": "^9.0.3",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.0.1",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.9.0",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.2.1",
+    "officeparser": "^8.2.0",
+    "pdf-parse": "^1.1.1",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0",
+    "youtube-transcript": "^1.2.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
+    "nodemon": "^3.1.9",
+    "prisma": "5.22.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

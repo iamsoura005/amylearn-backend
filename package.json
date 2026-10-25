@@ -1,0 +1,15 @@
+{
+  "name": "amylearn",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AmyLearn — unified academic platform for modern education",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "db:local": "npm --prefix backend run db:local",
+    "seed": "npm --prefix backend run seed",
+    "verify": "npm --prefix frontend run build"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "builds": [{ "src": "server.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/(.*)", "dest": "server.js" }],
+  "crons": [
+    { "path": "/api/cron/cleanup", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/db-keep-alive", "schedule": "0 0 * * 0" }
+  ]
+}
