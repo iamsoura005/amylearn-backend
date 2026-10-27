@@ -1,5 +1,11 @@
 # AmyLearn
 
+[![Deployed with Vercel](https://vercel.com/button)](https://amylearn.vercel.app)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live%20Deployment-black?style=flat&logo=vercel)](https://amylearn.vercel.app)
+
+> 🚀 **Live Production Deployment:** [https://amylearn.vercel.app](https://amylearn.vercel.app)  
+> 🔗 **Alternative Mirror:** [https://amylearn-iamsoura005s-projects.vercel.app](https://amylearn-iamsoura005s-projects.vercel.app)
+
 **Unified academic platform for modern education.** One multi-tenant workspace for departments, examinations, attendance, learning, library circulation and AI study support — each campus isolated behind its own college code.
 
 ## Repository layout
