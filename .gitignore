@@ -19,3 +19,4 @@ vibe_images/
 *.tsbuildinfo
 __pycache__/
 *.py[cod]
+.vercel
