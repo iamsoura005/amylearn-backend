@@ -84,33 +84,58 @@ For an isothermal reversible process, W = nRT ln(V₂/V₁). Watch the sign conv
 
 const MINDMAPS = {
   default: `graph TD
-  A[Study topic] --> B[Core concepts]
-  A --> C[Definitions]
-  A --> D[Worked examples]
-  B --> B1[Key formula]
-  B --> B2[Assumptions]
-  C --> C1[Term 1]
-  C --> C2[Term 2]
-  D --> D1[Practice set]
-  D --> D2[Common mistakes]`,
+  A["Study topic"] --> B["Core concepts"]
+  A --> C["Definitions"]
+  A --> D["Worked examples"]
+  B --> B1["Key formula"]
+  B --> B2["Assumptions"]
+  C --> C1["Term 1"]
+  C --> C2["Term 2"]
+  D --> D1["Practice set"]
+  D --> D2["Common mistakes"]`,
   photosynthesis: `graph TD
-  A[Photosynthesis] --> B[Light reactions]
-  A --> C[Calvin cycle]
-  B --> B1[Water splitting]
-  B --> B2[ATP + NADPH]
-  B --> B3[Oxygen released]
-  C --> C1[CO₂ fixation]
-  C --> C2[RuBisCO]
-  C --> C3[Glucose]`,
+  A["Photosynthesis"] --> B["Light reactions"]
+  A --> C["Calvin cycle"]
+  B --> B1["Water splitting"]
+  B --> B2["ATP + NADPH"]
+  B --> B3["Oxygen released"]
+  C --> C1["CO₂ fixation"]
+  C --> C2["RuBisCO"]
+  C --> C3["Glucose"]`,
   database: `graph TD
-  A[Normalisation] --> B[1NF]
-  A --> C[2NF]
-  A --> D[3NF]
-  A --> E[BCNF]
-  B --> B1[Atomic values]
-  C --> C1[No partial dependency]
-  D --> D1[No transitive dependency]
-  E --> E1[Candidate key determinants]`
+  A["Normalisation"] --> B["1NF"]
+  A --> C["2NF"]
+  A --> D["3NF"]
+  A --> E["BCNF"]
+  B --> B1["Atomic values"]
+  C --> C1["No partial dependency"]
+  D --> D1["No transitive dependency"]
+  E --> E1["Candidate key determinants"]`,
+  deadlock: `graph TD
+  A["Operating System Deadlocks"] --> B["4 Necessary Conditions"]
+  A --> C["Handling Strategies"]
+  A --> D["Detection & Recovery"]
+  B --> B1["Mutual Exclusion"]
+  B --> B2["Hold & Wait"]
+  B --> B3["No Preemption"]
+  B --> B4["Circular Wait"]
+  C --> C1["Deadlock Prevention"]
+  C --> C2["Deadlock Avoidance (Banker's)"]
+  C --> C3["Ostrich Algorithm"]
+  D --> D1["Resource Allocation Graph"]
+  D --> D2["Process Termination"]`,
+  networking: `graph TD
+  A["TCP Congestion Control"] --> B["Slow Start"]
+  A --> C["Congestion Avoidance"]
+  A --> D["Fast Retransmit & Recovery"]
+  B --> B1["Initial cwnd (1-2 MSS)"]
+  B --> B2["Exponential Growth"]
+  B --> B3["Reaches ssthresh"]
+  C --> C1["Additive Increase (AIMD)"]
+  C --> C2["Linear Growth (+1 MSS/RTT)"]
+  D --> D1["Trigger: 3 Duplicate ACKs"]
+  D --> D2["ssthresh halved"]
+  D --> D3["Fast Recovery window"]`
 };
 
 const detectTopic = (message = '') => {
@@ -121,8 +146,10 @@ const detectTopic = (message = '') => {
 
 const pickMindmap = (message = '') => {
   const text = String(message).toLowerCase();
-  if (/photosynth|plant/.test(text)) return MINDMAPS.photosynthesis;
-  if (/database|normal|dbms/.test(text)) return MINDMAPS.database;
+  if (/deadlock|os|operating|process/.test(text)) return MINDMAPS.deadlock;
+  if (/tcp|udp|congestion|network|packet/.test(text)) return MINDMAPS.networking;
+  if (/photosynth|plant|bio/.test(text)) return MINDMAPS.photosynthesis;
+  if (/database|normal|dbms|sql/.test(text)) return MINDMAPS.database;
   return MINDMAPS.default;
 };
 
@@ -144,8 +171,9 @@ export const STARTER_PROMPTS = [
 
 export const generateMockAiResponse = (message = '', mode = 'study', studentName = 'there') => {
   const topic = detectTopic(message);
+  const isMindmap = mode === 'mindmap' || /mind\s*map|mindmap|concept\s*map|flowchart|diagram/i.test(message);
 
-  if (mode === 'mindmap') {
+  if (isMindmap) {
     return { reply: `:::MERMAID_Start:::${pickMindmap(message)}:::MERMAID_End:::`, offline: true };
   }
 

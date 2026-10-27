@@ -301,9 +301,21 @@
     text-decoration: underline;
   }
 
+  .mermaid {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .mermaid svg {
+    min-width: 460px;
     max-width: 100%;
     height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+  @media (max-width: 640px) {
+    .mermaid svg {
+      min-width: 360px;
+    }
   }
 
   .portal-sidebar-scroll {

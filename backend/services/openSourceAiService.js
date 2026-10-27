@@ -31,7 +31,8 @@ const TASK_PROMPTS = {
     '(with four options and marked answer), 3 short-answer questions, and a comparison table for related concepts. Use clean markdown.',
   mindmap:
     'You are a Mermaid.js diagram generator. Return ONLY valid Mermaid code starting with "graph TD". ' +
-    'Map the material into a hierarchical mind map of concepts. Do not add prose, fences or commentary.'
+    'Map the material into a hierarchical mind map of concepts. ALWAYS enclose all node labels in double quotes inside brackets, e.g. A["Concept (Details)"]. ' +
+    'Never use unquoted parentheses inside node brackets. Never draw ASCII tree lines (├──, │, └──) or em-dashes (—). Output ONLY the ```mermaid code block.'
 };
 
 /**

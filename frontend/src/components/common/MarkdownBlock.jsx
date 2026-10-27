@@ -6,11 +6,20 @@ const MermaidDiagram = lazy(() => import('@/components/common/MermaidDiagram'));
 
 const prepare = (content = '') => {
   let text = String(content || '');
-  // Normalize Mermaid syntax
+
+  // Normalize all variations of MERMAID sentinel tags (2, 3, or more colons, with or without trailing colons)
+  text = text.replace(/:{2,}MERMAID_Start:{0,}([\s\S]*?):{2,}MERMAID_End:{0,}/gi, (_, code) => {
+    return `\n\`\`\`mermaid\n${code.trim()}\n\`\`\`\n`;
+  });
   text = text
-    .replace(/:::MERMAID_Start:::([\s\S]*?):::MERMAID_End:::/g, (_, code) => `\n\`\`\`mermaid\n${code.trim()}\n\`\`\`\n`)
-    .replace(/:{3,}MERMAID_Start:{3,}/g, '```mermaid')
-    .replace(/:{3,}MERMAID_End:{3,}/g, '```');
+    .replace(/:{2,}MERMAID_Start:{0,}/gi, '\n```mermaid\n')
+    .replace(/:{2,}MERMAID_End:{0,}/gi, '\n```\n');
+
+  // Also detect if content is a bare Mermaid diagram without code fences
+  const trimmed = text.trim();
+  if (!text.includes('```mermaid') && /^(?:graph\s+[A-Z]{2}|flowchart\s+[A-Z]{2}|mindmap)\b/i.test(trimmed)) {
+    text = `\`\`\`mermaid\n${trimmed}\n\`\`\``;
+  }
 
   // Ensure markdown tables always have a blank line before them so GFM table parser activates
   text = text.replace(/([^\n])\n(\|[^\n]+\|\r?\n\|[-:\s|]+\|)/g, '$1\n\n$2');
@@ -37,8 +46,13 @@ const components = {
   pre({ children }) {
     const child = Array.isArray(children) ? children[0] : children;
     const className = child?.props?.className || '';
-    if (typeof className === 'string' && className.includes('language-mermaid')) {
-      return <MermaidBlock code={String(child?.props?.children ?? '')} className="my-3" />;
+    const rawContent = String(child?.props?.children ?? '').trim();
+    const isMermaid =
+      (typeof className === 'string' && className.includes('language-mermaid')) ||
+      /^(?:graph\s+[A-Z]{2}|flowchart\s+[A-Z]{2}|mindmap)\b/i.test(rawContent);
+
+    if (isMermaid) {
+      return <MermaidBlock code={rawContent} className="my-3" />;
     }
     return (
       <pre className="my-3 overflow-x-auto rounded-xl border border-slate-200/80 bg-slate-900 p-3.5 text-xs text-slate-100 shadow-xs">

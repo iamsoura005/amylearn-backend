@@ -19,9 +19,10 @@ const FORMAT_INSTRUCTIONS =
   '\n\nCRITICAL RESPONSE STRUCTURE RULES:' +
   '\n1. Structure every response cleanly with standard Markdown: brief opening, clear ### Headings, bold key terms, and tidy bullet points.' +
   '\n2. Whenever presenting comparisons, differences, multi-feature breakdowns, pros/cons, classifications, or metrics, ALWAYS format them as a clean GitHub-flavored Markdown table with pipe syntax (`| Col 1 | Col 2 |` and `|---|---|`).' +
-  '\n3. NEVER use em-dashes (—) or hyphen lines as fake tables. Use standard Markdown tables with pipes, or clean bullet points.' +
+  '\n3. NEVER use em-dashes (—) or hyphen lines as fake tables or fake diagrams. Use standard Markdown tables with pipes, or clean bullet points.' +
   '\n4. Ensure tables have concise headers and well-aligned cells.' +
-  '\n5. Do not output raw internal thinking, reasoning tokens, or <think> blocks.';
+  '\n5. If asked for a mind map, concept map, flowchart, or visual diagram, ALWAYS provide a valid Mermaid diagram using ```mermaid graph TD ... ``` with double-quoted node labels like A["Core Concept"] --> B["Subtopic (Details)"]. NEVER draw ASCII tree lines (├──, │, └──) or em-dash hierarchies.' +
+  '\n6. Do not output raw internal thinking, reasoning tokens, or <think> blocks.';
 
 const SYSTEM_PROMPTS = {
   tutor:
@@ -30,8 +31,13 @@ const SYSTEM_PROMPTS = {
     'Be friendly, encouraging and concise.' +
     FORMAT_INSTRUCTIONS,
   mindmap:
-    'You generate Mermaid.js mind maps. Output ONLY a ```mermaid graph TD code block. ' +
-    'Keep it structured, hierarchical and study-friendly. No prose outside the code block.',
+    'You generate valid, compile-ready Mermaid.js diagrams. Output ONLY a ```mermaid\ngraph TD\n...``` code block.\n' +
+    'MANDATORY RULES:\n' +
+    '1. Hierarchical, clean tree of concepts starting from the central topic.\n' +
+    '2. ALWAYS enclose every single node label in double quotes inside brackets: e.g. A["Core Topic"] --> B["Subtopic (with details)"].\n' +
+    '3. NEVER leave unquoted parentheses, colons, commas or slashes inside node brackets.\n' +
+    '4. NEVER draw ASCII tree lines (├──, │, └──) or use em-dashes (—). Only use standard Mermaid arrows (--> or ---).\n' +
+    '5. Return ONLY the ```mermaid code block, with absolutely zero prose, greeting, or explanation outside the block.',
   default:
     'You are a supportive, high-clarity academic study companion inside the AmyLearn platform. ' +
     'Provide structured, well-formatted explanations personalized for the learner with concrete examples.' +
@@ -40,17 +46,38 @@ const SYSTEM_PROMPTS = {
 
 function cleanMermaidCode(raw) {
   let code = String(raw || '').trim();
-  code = code.replace(/```(?:mermaid)?\s*/gi, '').replace(/```\s*$/gi, '').trim();
+  code = code.replace(/^```(?:mermaid)?\s*/gi, '').replace(/\s*```$/gi, '').trim();
   code = code.split('\n').filter((line) => !/^mermaid\s*$/i.test(line.trim())).join('\n');
   code = code.replace(/\|>/g, '|');
-  if (!/^\s*graph\s+/i.test(code)) {
-    code = code.startsWith('graph TD') || code.startsWith('graphTD') ? `graph TD\n${code}` : `graph TD\n${code}`;
+
+  // Fix em-dashes and en-dashes in connection arrows and text
+  code = code.replace(/[\u2014\u2013]{2,}>/g, '-->');
+  code = code.replace(/[\u2014\u2013]>/g, '-->');
+  code = code.replace(/[\u2014\u2013]{2,}/g, '---');
+  code = code.replace(/[\u2014\u2013]/g, '-');
+
+  // Strip duplicate headers like graph TD\nflowchart TD or graph TD\nmindmap
+  code = code.replace(/^\s*graph\s+[A-Z]{2}\s+(graph|flowchart|mindmap)/i, '$1');
+
+  // Ensure diagram type header exists
+  const isKnownType = /^\s*(graph|flowchart|mindmap|classDiagram|sequenceDiagram|erDiagram|gantt|pie|gitGraph|stateDiagram)\b/i.test(code);
+  if (!isKnownType) {
+    code = `graph TD\n${code}`;
   }
+
+  // Quote unquoted node labels with special characters (parentheses, colons, slashes, dashes, commas)
+  // E.g. A[Aarav (CSE) - TCP Congestion Control] => A["Aarav (CSE) - TCP Congestion Control"]
+  code = code.replace(/(\b[A-Za-z0-9_]+)\s*\[\s*([^"\]\n]+?)\s*\]/g, (match, id, label) => {
+    if (label.startsWith('"') && label.endsWith('"')) return match;
+    const cleanLabel = label.replace(/"/g, "'").trim();
+    return `${id}["${cleanLabel}"]`;
+  });
+
   return code.trim();
 }
 
 function wrapMermaid(code) {
-  return `:::MERMAID_Start::${cleanMermaidCode(code)}:::MERMAID_End:::`;
+  return `:::MERMAID_Start:::${cleanMermaidCode(code)}:::MERMAID_End:::`;
 }
 
 function gpuOfflineReply() {
@@ -74,21 +101,28 @@ const chat = asyncHandler(async (req, res) => {
   if (!message) throw httpError(400, 'Provide a message to chat with the study companion.');
 
   const mode = String(req.body.mode || 'default').toLowerCase();
+  const isMindmapRequest = mode === 'mindmap' || /mind\s*map|mindmap|concept\s*map|flowchart|diagram/i.test(message);
+
   const context = req.body.context && typeof req.body.context === 'object' ? req.body.context : {};
   const userName = context.userName || (req.user ? req.user.name : 'there');
   const classroomName = context.classroomName || (req.tenant ? req.tenant.name : 'your institution');
 
   const systemInstruction =
+    (isMindmapRequest && SYSTEM_PROMPTS.mindmap) ||
     (mode === 'tutor' && SYSTEM_PROMPTS.tutor) ||
-    (mode === 'mindmap' && SYSTEM_PROMPTS.mindmap) ||
     SYSTEM_PROMPTS.default;
 
   const personalised = `The learner's name is ${userName}. Their classroom is ${classroomName}.`;
   const fullMessage = `${personalised}\n\n${message}`;
 
   try {
-    const reply = await generateTutorResponse(systemInstruction, fullMessage, 2500, mode === 'mindmap' ? 0.2 : 0.7);
-    const output = mode === 'mindmap' ? wrapMermaid(reply) : reply;
+    const reply = await generateTutorResponse(systemInstruction, fullMessage, 2500, isMindmapRequest ? 0.2 : 0.7);
+    let output = reply;
+    if (isMindmapRequest) {
+      output = wrapMermaid(reply);
+    } else if (/```(?:mermaid)?\s*(graph|flowchart|mindmap)[\s\S]*?```/i.test(reply)) {
+      output = reply.replace(/```(?:mermaid)?\s*([\s\S]*?)```/gi, (_, c) => wrapMermaid(c));
+    }
     return res.json({ success: true, reply: output, mode });
   } catch (error) {
     if (error instanceof AiServiceError || !isAiConfigured()) {
