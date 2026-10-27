@@ -10,6 +10,9 @@
     "build": "npm --prefix frontend run build",
     "db:local": "npm --prefix backend run db:local",
     "seed": "npm --prefix backend run seed",
-    "verify": "npm --prefix frontend run build"
+    "verify": "npm --prefix frontend run build",
+    "rea:doctor": "rea doctor",
+    "rea:mcp": "rea mcp doctor",
+    "rea:analyze": "rea analyze-javascript-application frontend/dist --format md"
   }
 }

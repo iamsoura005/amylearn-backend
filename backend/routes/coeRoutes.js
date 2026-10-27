@@ -2,12 +2,21 @@
 
 const router = require('express').Router();
 const multer = require('multer');
+const { httpError } = require('../utils/apiHelpers');
 const { setTenantContext } = require('../middleware/authMiddleware');
 const coe = require('../controllers/coeController');
 
+const ALLOWED_DOC_EXTENSIONS = /\.(pdf|docx?|txt|png|jpe?g|webp)$/i;
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter(req, file, callback) {
+    if (ALLOWED_DOC_EXTENSIONS.test(file.originalname || '')) {
+      return callback(null, true);
+    }
+    return callback(httpError(415, 'Unsupported question paper format. Upload a PDF, DOC, DOCX, TXT or image.'));
+  }
 });
 
 router.use(setTenantContext);

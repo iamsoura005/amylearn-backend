@@ -18,22 +18,22 @@ function staffOf(req) {
   return req.isSuperAdmin || ['college_admin', 'faculty'].includes(normalizeRole(req.role));
 }
 
-async function readCompletions() {
-  const stored = await getTenantJson(COMPLETIONS_KEY, null, {});
+async function readCompletions(tenantId) {
+  const stored = await getTenantJson(COMPLETIONS_KEY, tenantId, {});
   return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
 }
 
-async function writeCompletions(map) {
-  await setTenantJson(COMPLETIONS_KEY, null, map);
+async function writeCompletions(tenantId, map) {
+  await setTenantJson(COMPLETIONS_KEY, tenantId, map);
 }
 
-async function readDownloadToggles() {
-  const stored = await getTenantJson(DOWNLOAD_KEY, null, {});
+async function readDownloadToggles(tenantId) {
+  const stored = await getTenantJson(DOWNLOAD_KEY, tenantId, {});
   return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
 }
 
-async function writeDownloadToggles(map) {
-  await setTenantJson(DOWNLOAD_KEY, null, map);
+async function writeDownloadToggles(tenantId, map) {
+  await setTenantJson(DOWNLOAD_KEY, tenantId, map);
 }
 
 function decorateContent(content, completedIds, downloadToggles) {
@@ -71,9 +71,9 @@ const listModules = asyncHandler(async (req, res) => {
     throw httpError(404, 'Course not found in this institution.');
   }
 
-  const completions = await readCompletions();
+  const completions = await readCompletions(tenant.id);
   const completedIds = new Set((completions && completions[req.user.id]) || []);
-  const downloadToggles = await readDownloadToggles();
+  const downloadToggles = await readDownloadToggles(tenant.id);
 
   const modules = await prisma.classModule.findMany({
     where: { subjectId: subject.id },
@@ -122,9 +122,9 @@ const listContent = asyncHandler(async (req, res) => {
   const subject = await prisma.subject.findFirst({ where: { id: module.subjectId, tenantId: tenant.id } });
   if (!subject) throw httpError(403, 'This module does not belong to your institution.');
 
-  const completions = await readCompletions();
+  const completions = await readCompletions(tenant.id);
   const completedIds = new Set((completions && completions[req.user.id]) || []);
-  const downloadToggles = await readDownloadToggles();
+  const downloadToggles = await readDownloadToggles(tenant.id);
 
   return res.json({
     success: true,
@@ -167,9 +167,9 @@ const getContent = asyncHandler(async (req, res) => {
   const subject = await prisma.subject.findFirst({ where: { id: content.module.subjectId, tenantId: tenant.id } });
   if (!subject) throw httpError(403, 'This content does not belong to your institution.');
 
-  const completions = await readCompletions();
+  const completions = await readCompletions(tenant.id);
   const completedIds = new Set((completions && completions[req.user.id]) || []);
-  const downloadToggles = await readDownloadToggles();
+  const downloadToggles = await readDownloadToggles(tenant.id);
 
   return res.json({ success: true, content: decorateContent(content, completedIds, downloadToggles) });
 });
@@ -185,10 +185,10 @@ const toggleDownload = asyncHandler(async (req, res) => {
   const subject = await prisma.subject.findFirst({ where: { id: content.module.subjectId, tenantId: tenant.id } });
   if (!subject) throw httpError(403, 'This content does not belong to your institution.');
 
-  const toggles = await readDownloadToggles();
+  const toggles = await readDownloadToggles(tenant.id);
   const requested = req.body.downloadable === undefined ? toggles[content.id] === false : Boolean(req.body.downloadable);
   toggles[content.id] = requested;
-  await writeDownloadToggles(toggles);
+  await writeDownloadToggles(tenant.id, toggles);
 
   return res.json({ success: true, message: `Downloads ${requested ? 'enabled' : 'disabled'} for this content.`, content: { ...content, downloadable: requested } });
 });
@@ -203,18 +203,18 @@ const completeContent = asyncHandler(async (req, res) => {
   const subject = await prisma.subject.findFirst({ where: { id: content.module.subjectId, tenantId: tenant.id } });
   if (!subject) throw httpError(403, 'This content does not belong to your institution.');
 
-  const completions = await readCompletions();
+  const completions = await readCompletions(tenant.id);
   const mine = new Set((completions && completions[req.user.id]) || []);
   const completed = req.body.completed === undefined ? !mine.has(content.id) : Boolean(req.body.completed);
   if (completed) mine.add(content.id);
   else mine.delete(content.id);
   completions[req.user.id] = Array.from(mine);
-  await writeCompletions(completions);
+  await writeCompletions(tenant.id, completions);
 
   return res.json({
     success: true,
     message: completed ? 'Marked as completed.' : 'Marked as not completed.',
-    content: decorateContent(content, mine, await readDownloadToggles())
+    content: decorateContent(content, mine, await readDownloadToggles(tenant.id))
   });
 });
 

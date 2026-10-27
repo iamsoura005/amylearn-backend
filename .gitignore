@@ -17,3 +17,5 @@ backend/.pgdata/
 vibe_images/
 *.zip
 *.tsbuildinfo
+__pycache__/
+*.py[cod]

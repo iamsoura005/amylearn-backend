@@ -38,10 +38,10 @@ export const VideoPlayer = ({
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-deepNavy"
+              className="grid min-h-[44px] min-w-[44px] place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-deepNavy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brandBlue"
               aria-label="Download video"
             >
-              <Download size={13} />
+              <Download size={15} />
             </a>
           ) : (
             <Badge tone="amber">View only</Badge>
@@ -54,27 +54,23 @@ export const VideoPlayer = ({
             <PlayCircle size={32} />
             <p className="text-[11px] font-semibold">Video coming soon</p>
           </div>
-        ) : isEmbeddable(url) || playing ? (
+        ) : isEmbeddable(url) ? (
           <iframe
-            src={isEmbeddable(url) ? toEmbedUrl(url) : url}
+            src={toEmbedUrl(url)}
             title={title}
             className="h-full w-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
         ) : (
-          <>
-            <video controls playsInline poster={poster} className="h-full w-full object-cover" onPlay={() => setPlaying(true)}>
-              <source src={url} />
-            </video>
-            {poster ? (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <span className="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-brandBlue shadow-lg">
-                  <PlayCircle size={28} />
-                </span>
-              </div>
-            ) : null}
-          </>
+          <video
+            controls
+            playsInline
+            poster={poster}
+            className="h-full w-full object-cover"
+          >
+            <source src={url} />
+          </video>
         )}
       </div>
       <div className="flex items-center justify-between gap-2 px-4 py-2 text-[10px] text-slate-500">

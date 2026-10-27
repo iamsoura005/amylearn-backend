@@ -91,10 +91,10 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        jakarta: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['Jost', '"Plus Jakarta Sans"', 'ui-sans-serif', 'sans-serif'],
-        jost: ['Jost', '"Plus Jakarta Sans"', 'ui-sans-serif', 'sans-serif'],
+        sans: ['Arial', 'Helvetica', 'sans-serif'],
+        jakarta: ['Arial', 'Helvetica', 'sans-serif'],
+        display: ['Arial', 'Helvetica', 'sans-serif'],
+        jost: ['Arial', 'Helvetica', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace']
       },
       maxWidth: {

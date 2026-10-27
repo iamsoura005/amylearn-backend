@@ -9,7 +9,7 @@ const ensureMermaid = () => {
     startOnLoad: false,
     securityLevel: 'strict',
     theme: 'base',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    fontFamily: 'Arial, Helvetica, sans-serif',
     themeVariables: {
       primaryColor: '#EEF4FF',
       primaryTextColor: '#0A1F44',

@@ -1,5 +1,4 @@
-'use strict';
-
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../config/prisma');
 const { signToken, decodeToken } = require('../middleware/authMiddleware');
@@ -16,6 +15,14 @@ const { randomCode } = require('../utils/crypto');
 const { nextSequence } = require('../utils/systemConfig');
 const { revokeToken } = require('../utils/tokenBlacklist');
 const emailService = require('../services/emailService');
+
+function constantTimeCodeMatch(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 const PLATFORM_SIGNUP_ROLES = ['it_admin', 'it_user', 'amylearn_admin', 'amylearn_manager'];
 const CAMPUS_SIGNUP_ROLES = ['student', 'faculty', 'college_admin'];
@@ -149,18 +156,7 @@ const checkEmail = asyncHandler(async (req, res) => {
   return res.json({
     success: true,
     exists: true,
-    available: false,
-    email: user.email,
-    role: user.role,
-    frontendRole: toFrontendRole(user.role),
-    colleges: (user.memberships || [])
-      .filter((membership) => membership.status === 'active' && membership.tenant)
-      .map((membership) => ({
-        id: membership.tenant.id,
-        name: membership.tenant.name,
-        collegeCode: membership.tenant.collegeCode,
-        role: membership.role
-      }))
+    available: false
   });
 });
 
@@ -216,7 +212,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     await prisma.emailVerification.delete({ where: { email } }).catch(() => {});
     throw httpError(400, 'This verification code has expired. Request a new one.');
   }
-  if (record.code !== code) {
+  if (!constantTimeCodeMatch(record.code, code)) {
     throw httpError(400, 'That verification code is incorrect.');
   }
 
@@ -231,6 +227,13 @@ const roleSignup = asyncHandler(async (req, res) => {
   const body = req.body;
   const email = String(body.email).trim().toLowerCase();
   const role = normalizeRole(body.role || 'student');
+
+  if (!body.name || !String(body.name).trim()) {
+    throw httpError(400, 'Name is required.');
+  }
+  if (!body.password || String(body.password).length < 8) {
+    throw httpError(400, 'Password must be at least 8 characters long.');
+  }
 
   const allowed = [...PLATFORM_SIGNUP_ROLES.map(normalizeRole), ...CAMPUS_SIGNUP_ROLES];
   if (!allowed.includes(role)) {
@@ -497,6 +500,9 @@ const changePassword = asyncHandler(async (req, res) => {
 
   const ok = await bcrypt.compare(String(req.body.currentPassword), user.password);
   if (!ok) throw httpError(400, 'Your current password is incorrect.');
+  if (!req.body.newPassword || String(req.body.newPassword).length < 8) {
+    throw httpError(400, 'New password must be at least 8 characters long.');
+  }
   if (String(req.body.currentPassword) === String(req.body.newPassword)) {
     throw httpError(400, 'Choose a password different from your current one.');
   }

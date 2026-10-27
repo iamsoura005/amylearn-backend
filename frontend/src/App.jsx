@@ -50,8 +50,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     const allowed = allowedRoles.some((entry) => {
       const normalized = String(entry).toLowerCase();
       if (normalized === role) return true;
-      if (normalized.includes('admin') && role.includes('admin')) return true;
-      if (normalized.includes('manager') && role.includes('manager')) return true;
       return (ROLE_ALIASES[normalized] || []).includes(role);
     });
     if (!allowed) return <Navigate to="/dashboard" replace />;

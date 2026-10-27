@@ -209,6 +209,34 @@ export const CampusStudentDashboard = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [query, setQuery] = useState('');
   const visited = useRef(new Set());
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    if (!notifOpen && !profileOpen) return;
+    const handlePointerDown = (event) => {
+      if (notifOpen && notifRef.current && !notifRef.current.contains(event.target)) {
+        setNotifOpen(false);
+      }
+      if (profileOpen && profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setNotifOpen(false);
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notifOpen, profileOpen]);
 
   const student = useMemo(
     () => ({
@@ -337,17 +365,17 @@ export const CampusStudentDashboard = () => {
                 <span className="hidden sm:inline">Ask Amy</span>
               </button>
 
-              <div className="relative">
+              <div className="relative" ref={notifRef}>
                 <button
                   onClick={() => {
                     setNotifOpen((value) => !value);
                     setProfileOpen(false);
                   }}
-                  className="relative grid h-9 w-9 place-items-center rounded-xl border border-indigo-100 bg-white text-slate-500 hover:text-indigo-700"
+                  className="relative grid min-h-[44px] min-w-[44px] place-items-center rounded-xl border border-indigo-100 bg-white text-slate-500 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                   aria-label="Notifications"
                 >
                   <Bell size={15} />
-                  <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                  <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
                 </button>
                 {notifOpen ? (
                   <div className="absolute right-0 mt-2 w-[300px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-bento">
@@ -383,13 +411,13 @@ export const CampusStudentDashboard = () => {
                 ) : null}
               </div>
 
-              <div className="relative">
+              <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => {
                     setProfileOpen((value) => !value);
                     setNotifOpen(false);
                   }}
-                  className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-white py-1 pl-1 pr-2.5 hover:bg-indigo-50/40"
+                  className="flex min-h-[44px] items-center gap-2 rounded-xl border border-indigo-100 bg-white py-1 pl-1 pr-2.5 hover:bg-indigo-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                 >
                   <Avatar name={student.name} size="sm" tone="indigo" />
                   <span className="hidden text-left sm:block">

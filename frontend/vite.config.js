@@ -18,6 +18,26 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false
+      },
+      '/it-admin': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/it-auth': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/session': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/webdata': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false
       }
     }
   },

@@ -62,12 +62,12 @@ export const GlassHeader = ({
 
         <button
           onClick={() => setOpen(true)}
-          className={`grid h-9 w-9 place-items-center rounded-xl lg:hidden ${
-            transparent ? 'bg-white/10 text-white' : 'bg-slate-100 text-deepNavy'
+          className={`grid min-h-[44px] min-w-[44px] place-items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brandBlue lg:hidden ${
+            transparent ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-100 text-deepNavy hover:bg-slate-200'
           }`}
           aria-label="Open menu"
         >
-          <Menu size={18} />
+          <Menu size={20} />
         </button>
       </div>
 
@@ -92,7 +92,7 @@ export const GlassHeader = ({
                 <AmyLearnLogo size={32} />
                 <button
                   onClick={() => setOpen(false)}
-                  className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600"
+                  className="grid min-h-[44px] min-w-[44px] place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brandBlue"
                   aria-label="Close menu"
                 >
                   <X size={18} />

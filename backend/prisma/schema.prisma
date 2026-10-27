@@ -279,6 +279,7 @@ model Notice {
   poster   User           @relation("PosterNotices", fields: [posterId], references: [id], onDelete: Cascade)
   comments NoticeComment[]
   reactions NoticeReaction[]
+  @@index([tenantId])
   @@map("notices")
 }
 
@@ -291,6 +292,7 @@ model NoticeComment {
   parentId  String?
   createdAt DateTime @default(now())
   notice Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  @@index([noticeId])
   @@map("notice_comments")
 }
 
@@ -317,6 +319,8 @@ model LeaveApplication {
   createdAt   DateTime  @default(now())
   tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   applicant User   @relation("ApplicantLeaves", fields: [applicantId], references: [id], onDelete: Cascade)
+  @@index([tenantId])
+  @@index([applicantId])
   @@map("leave_applications")
 }
 
@@ -377,6 +381,7 @@ model BookCopy {
   dueDate    DateTime?
   book     PhysicalBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
   issuedTo User?        @relation("BookIssuedTo", fields: [issuedToId], references: [id], onDelete: SetNull)
+  @@index([issuedToId])
   @@map("book_copies")
 }
 
@@ -420,6 +425,8 @@ model Attendance {
   subject Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   faculty User               @relation("FacultyAttendance", fields: [facultyId], references: [id], onDelete: Cascade)
   records AttendanceRecord[]
+  @@index([tenantId, date])
+  @@index([batchId])
   @@map("attendances")
 }
 
@@ -430,6 +437,8 @@ model AttendanceRecord {
   status       String @default("Present") // Present | Absent | Late
   attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
   student    User       @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  @@index([studentId])
+  @@index([attendanceId])
   @@map("attendance_records")
 }
 

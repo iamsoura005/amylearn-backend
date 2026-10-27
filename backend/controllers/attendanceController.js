@@ -298,18 +298,18 @@ const mark = asyncHandler(async (req, res) => {
     }
   });
 
-  const created = [];
+  const recordsToInsert = [];
   for (const entry of records) {
     const studentId = entry.studentId || entry.userId || entry.id;
     if (!studentId) continue;
     const status = ['Present', 'Absent', 'Late'].includes(String(entry.status))
       ? String(entry.status)
       : 'Present';
-    // eslint-disable-next-line no-await-in-loop
-    await prisma.attendanceRecord.create({
-      data: { attendanceId: attendance.id, studentId: String(studentId), status }
-    });
-    created.push({ studentId: String(studentId), status });
+    recordsToInsert.push({ attendanceId: attendance.id, studentId: String(studentId), status });
+  }
+
+  if (recordsToInsert.length) {
+    await prisma.attendanceRecord.createMany({ data: recordsToInsert });
   }
 
   const saved = await prisma.attendance.findUnique({

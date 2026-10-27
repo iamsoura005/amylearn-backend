@@ -11,46 +11,65 @@ class AiServiceError extends Error {
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 30000;
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const DEFAULT_TIMEOUT_MS = 35000;
 
-function getAiConfig() {
-  return {
-    chatUrl: process.env.MODAL_CHAT_URL || '',
-    visionUrl: process.env.MODAL_VISION_URL || '',
-    pipelineUrl: process.env.MODAL_PIPELINE_URL || '',
-    apiKey: process.env.MODAL_API_KEY || '',
-    timeout: Number(process.env.MODAL_TIMEOUT_MS) > 0 ? Number(process.env.MODAL_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS
-  };
+// High-speed open-source reasoning models on Groq
+const DEFAULT_REASONING_MODEL = 'openai/gpt-oss-120b';
+const FALLBACK_REASONING_MODEL = 'qwen/qwen3.8-27b';
+const FAST_REASONING_MODEL = 'openai/gpt-oss-20b';
+
+const TASK_PROMPTS = {
+  summarize:
+    'You are an academic study assistant. Produce a structured summary with: an overview, key concepts, ' +
+    'definitions, and a clean markdown table summarizing key properties or components where appropriate. Use concise markdown headings, bold terms, and clean bullets.',
+  solve:
+    'You are an academic problem solver. Solve every question in the material. For each item show the final ' +
+    'answer first, then a clear step-by-step method with formulas and assumptions in structured markdown.',
+  exam_quiz:
+    'You are an examination setter. Create an exam-style quiz from the material: 5 multiple-choice questions ' +
+    '(with four options and marked answer), 3 short-answer questions, and a comparison table for related concepts. Use clean markdown.',
+  mindmap:
+    'You are a Mermaid.js diagram generator. Return ONLY valid Mermaid code starting with "graph TD". ' +
+    'Map the material into a hierarchical mind map of concepts. Do not add prose, fences or commentary.'
+};
+
+/**
+ * Strip thinking / chain-of-thought tags so internal reasoning is hidden from the user
+ */
+function stripThinkingTags(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .replace(/^>\s*\*\*Step-by-Step Reasoning:\*\*[\s\S]*?(?=\n\n[^\n]|$)/i, '')
+    .trim();
 }
 
-function isAiConfigured() {
-  const config = getAiConfig();
-  return Boolean(config.apiKey && (config.chatUrl || config.visionUrl || config.pipelineUrl));
-}
+const cleanThinkingTags = stripThinkingTags;
 
-function assertConfigured(url, label) {
-  const config = getAiConfig();
-  if (!config.apiKey) {
-    throw new AiServiceError(
-      'The AmyLearn AI service is not configured (missing MODAL_API_KEY).',
-      'AI_KEY_MISSING',
-      503
-    );
-  }
-  if (!url) {
-    throw new AiServiceError(
-      `The AmyLearn AI ${label} endpoint is not configured.`,
-      'AI_ENDPOINT_MISSING',
-      503
-    );
-  }
-  return config;
-}
-
+/**
+ * Extracts pure string text without internal reasoning details
+ */
 function extractText(data) {
   if (data === null || data === undefined) return '';
-  if (typeof data === 'string') return data;
+  if (typeof data === 'string') return stripThinkingTags(data);
   if (Array.isArray(data)) return data.map(extractText).join('\n').trim();
+
+  // Groq / OpenAI chat completions
+  if (data.choices && Array.isArray(data.choices) && data.choices.length) {
+    const choice = data.choices[0];
+    const content = choice && (choice.message ? choice.message.content : choice.text);
+    let output = typeof content === 'string' ? content.trim() : '';
+
+    // If content is empty (e.g. model output only in reasoning field), fallback to clean text
+    if (!output && choice && choice.message && choice.message.reasoning) {
+      output = stripThinkingTags(choice.message.reasoning);
+    }
+
+    if (output) return stripThinkingTags(output);
+  }
+
   const candidates = [
     data.response,
     data.reply,
@@ -62,24 +81,13 @@ function extractText(data) {
     data.result
   ];
   for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+    if (typeof candidate === 'string' && candidate.trim()) return cleanThinkingTags(candidate.trim());
     if (candidate && typeof candidate === 'object') {
       const nested = extractText(candidate);
       if (nested) return nested;
     }
   }
-  if (data.choices && Array.isArray(data.choices) && data.choices.length) {
-    const choice = data.choices[0];
-    const content = choice && (choice.message ? choice.message.content : choice.text);
-    if (typeof content === 'string' && content.trim()) return content.trim();
-  }
-  if (data.candidates && Array.isArray(data.candidates) && data.candidates.length) {
-    const parts = data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-    if (Array.isArray(parts)) {
-      const joined = parts.map((part) => part.text || '').join('\n').trim();
-      if (joined) return joined;
-    }
-  }
+
   try {
     return JSON.stringify(data);
   } catch (error) {
@@ -87,117 +95,114 @@ function extractText(data) {
   }
 }
 
-async function postToEndpoint(url, payload, label = 'inference') {
-  const config = assertConfigured(url, label);
-  try {
-    const response = await axios.post(url, payload, {
-      timeout: config.timeout,
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity
-    });
-    const text = extractText(response.data);
-    if (!text) {
-      throw new AiServiceError('The AI service returned an empty response.', 'AI_EMPTY_RESPONSE', 502);
-    }
-    return text;
-  } catch (error) {
-    if (error instanceof AiServiceError) throw error;
-    if (error.response) {
-      const detail =
-        (error.response.data && (error.response.data.error || error.response.data.message)) ||
-        `status ${error.response.status}`;
-      throw new AiServiceError(`The AI service rejected the request: ${detail}`, 'AI_UPSTREAM_ERROR', 502);
-    }
-    if (error.code === 'ECONNABORTED') {
-      throw new AiServiceError('The AI service timed out. Please try again.', 'AI_TIMEOUT', 504);
-    }
-    throw new AiServiceError(`The AI service is unreachable: ${error.message}`, 'AI_UNREACHABLE', 502);
-  }
-}
+function getAiConfig() {
+  const apiKey = (process.env.GROQ_API_KEY || '').trim();
+  const model = process.env.AI_MODEL || DEFAULT_REASONING_MODEL;
+  const timeout = Number(process.env.AI_TIMEOUT_MS) > 0 ? Number(process.env.AI_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
 
-/**
- * Chat completion against the self-hosted GPU endpoint.
- */
-async function generateTutorResponse(systemInstruction, message, maxTokens = 1024, temperature = 0.7) {
-  const config = getAiConfig();
-  const payload = {
-    system_instruction: systemInstruction,
-    system: systemInstruction,
-    message,
-    prompt: message,
-    messages: [
-      { role: 'system', content: systemInstruction },
-      { role: 'user', content: message }
-    ],
-    max_tokens: maxTokens,
-    temperature
+  return {
+    provider: apiKey ? 'groq' : 'none',
+    apiKey,
+    baseUrl: GROQ_CHAT_URL,
+    model,
+    timeout
   };
-  const text = await postToEndpoint(config.chatUrl, payload, 'chat');
-  return text;
 }
 
-function bufferToBase64(buffer) {
-  if (!buffer) return null;
-  if (typeof buffer === 'string') {
-    if (buffer.startsWith('data:')) return buffer;
-    return `data:image/jpeg;base64,${buffer}`;
-  }
-  return `data:image/jpeg;base64,${Buffer.from(buffer).toString('base64')}`;
-}
-
-/**
- * Vision model used for scanned pages, charts, handwriting, formulas and tables.
- */
-async function extractVisualContext(imageBufferOrBase64, instruction) {
+function isAiConfigured() {
   const config = getAiConfig();
-  const image = bufferToBase64(imageBufferOrBase64);
-  if (!image) {
-    throw new AiServiceError('No image supplied for visual extraction.', 'AI_NO_IMAGE', 400);
-  }
-  const effectiveInstruction =
-    instruction ||
-    'Extract all visible text verbatim, including formulas, equations, tables and handwriting. ' +
-      'Transcribe tables as markdown and describe every chart or diagram in detail.';
-  const payload = {
-    image,
-    images: [image],
-    instruction: effectiveInstruction,
-    prompt: effectiveInstruction,
-    task: 'visual_extraction'
-  };
-  const text = await postToEndpoint(config.visionUrl, payload, 'vision');
-  return text;
+  return Boolean(config.apiKey);
 }
 
-const TASK_PROMPTS = {
-  summarize:
-    'You are an academic study assistant. Produce a structured summary with: an overview, key concepts, ' +
-    'definitions, formulas, and a short revision checklist. Use concise markdown headings and bullets.',
-  solve:
-    'You are an academic problem solver. Solve every question in the material. For each item show the final ' +
-    'answer first, then a short step-by-step method, and flag any assumptions. Use markdown.',
-  exam_quiz:
-    'You are an examination setter. Create an exam-style quiz from the material: 5 multiple-choice questions ' +
-    '(four options and a marked answer), 3 short-answer questions and 2 long-answer questions. Use markdown.',
-  mindmap:
-    'You are a Mermaid.js diagram generator. Return ONLY valid Mermaid code starting with "graph TD". ' +
-    'Map the material into a hierarchical mind map of concepts. Do not add prose, fences or commentary.'
-};
+/**
+ * Execute chat completion via Groq with automatic model fallback
+ */
+async function callGroq({ messages, maxTokens = 2048, temperature = 0.6, model = null }) {
+  const config = getAiConfig();
+  if (!config.apiKey) {
+    throw new AiServiceError(
+      'GROQ_API_KEY is not configured in backend/.env.',
+      'AI_KEY_MISSING',
+      503
+    );
+  }
+
+  const primaryModel = model || config.model;
+  const modelsToTry = [primaryModel];
+  if (primaryModel !== FALLBACK_REASONING_MODEL) modelsToTry.push(FALLBACK_REASONING_MODEL);
+  if (!modelsToTry.includes(FAST_REASONING_MODEL)) modelsToTry.push(FAST_REASONING_MODEL);
+
+  let lastError = null;
+
+  for (const targetModel of modelsToTry) {
+    try {
+      const response = await axios.post(
+        config.baseUrl,
+        {
+          model: targetModel,
+          messages,
+          max_tokens: maxTokens,
+          temperature
+        },
+        {
+          timeout: config.timeout,
+          headers: {
+            Authorization: `Bearer ${config.apiKey}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity
+        }
+      );
+
+      const text = extractText(response.data);
+      if (!text) {
+        throw new AiServiceError(`Groq (${targetModel}) returned an empty response.`, 'AI_EMPTY_RESPONSE', 502);
+      }
+      return text;
+    } catch (error) {
+      lastError = error;
+      const errorMsg = error.response?.data?.error?.message || error.message || '';
+      // If model decommissioned or unavailable, try next candidate
+      if (error.response?.status === 404 || error.response?.data?.error?.code === 'model_decommissioned') {
+        console.warn(`[ai-service] Groq model ${targetModel} unavailable, trying fallback...`);
+        continue;
+      }
+      // For general upstream errors
+      if (error.response) {
+        const detail = error.response.data?.error?.message || `HTTP ${error.response.status}`;
+        throw new AiServiceError(`Groq error: ${detail}`, 'AI_UPSTREAM_ERROR', 502);
+      }
+      if (error.code === 'ECONNABORTED') {
+        throw new AiServiceError('Groq AI service timed out. Please try again.', 'AI_TIMEOUT', 504);
+      }
+      throw new AiServiceError(`Groq service unreachable: ${error.message}`, 'AI_UNREACHABLE', 502);
+    }
+  }
+
+  throw new AiServiceError(`Groq inference failed: ${lastError?.message}`, 'AI_ALL_MODELS_FAILED', 502);
+}
 
 /**
- * Multimodal pipeline entry point. Prefers the dedicated pipeline endpoint and
- * falls back to vision/chat depending on the payload.
+ * Chat completion / tutoring entry point
+ */
+async function generateTutorResponse(systemInstruction, message, maxTokens = 2500, temperature = 0.7) {
+  const messages = [
+    { role: 'system', content: systemInstruction },
+    { role: 'user', content: message }
+  ];
+  return callGroq({ messages, maxTokens, temperature });
+}
+
+/**
+ * Multimodal input processing (documents, parsed text, and academic prompts)
  */
 async function processMultimodalInput({ imageBuffer, taskType = 'summarize', userPrompt, studentName, text } = {}) {
-  const config = getAiConfig();
   const safeTask = TASK_PROMPTS[taskType] ? taskType : 'summarize';
   const taskInstruction = TASK_PROMPTS[safeTask];
   const personalisation = studentName ? ` The learner's name is ${studentName}.` : '';
+
   const combinedPrompt = [
     taskInstruction,
     personalisation,
@@ -207,32 +212,7 @@ async function processMultimodalInput({ imageBuffer, taskType = 'summarize', use
     .filter(Boolean)
     .join('\n\n');
 
-  const image = bufferToBase64(imageBuffer);
-
-  if (config.pipelineUrl) {
-    const payload = {
-      task_type: safeTask,
-      prompt: combinedPrompt,
-      user_prompt: userPrompt || '',
-      material: text || '',
-      student_name: studentName || '',
-      image,
-      images: image ? [image] : [],
-      max_tokens: 2000,
-      temperature: safeTask === 'mindmap' ? 0.2 : 0.4
-    };
-    return postToEndpoint(config.pipelineUrl, payload, 'pipeline');
-  }
-
-  if (image && config.visionUrl) {
-    return extractVisualContext(image, combinedPrompt);
-  }
-
-  if (config.chatUrl) {
-    return generateTutorResponse(taskInstruction, combinedPrompt, 2000, 0.4);
-  }
-
-  throw new AiServiceError('No AmyLearn AI endpoint is available.', 'AI_ENDPOINT_MISSING', 503);
+  return generateTutorResponse(taskInstruction, combinedPrompt, 2048, safeTask === 'mindmap' ? 0.2 : 0.4);
 }
 
 module.exports = {
@@ -240,8 +220,8 @@ module.exports = {
   getAiConfig,
   isAiConfigured,
   generateTutorResponse,
-  extractVisualContext,
   processMultimodalInput,
   extractText,
+  cleanThinkingTags,
   TASK_PROMPTS
 };

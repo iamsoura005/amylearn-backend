@@ -59,9 +59,6 @@ function getTokenFromRequest(req) {
   if (req.cookies && (req.cookies.sessionToken || req.cookies.token)) {
     return req.cookies.sessionToken || req.cookies.token;
   }
-  if (req.query && typeof req.query.token === 'string' && req.query.token.length > 20) {
-    return req.query.token;
-  }
   return null;
 }
 
@@ -82,6 +79,9 @@ function requestedTenantRef(req) {
 function membershipMatchesRef(membership, ref) {
   if (!membership || !ref) return false;
   const normalized = String(ref).trim().toLowerCase();
+  if (normalized.startsWith('demo-') || normalized === 'demo') {
+    return true;
+  }
   const tenant = membership.tenant || {};
   return [membership.tenantId, tenant.id, tenant.collegeCode, tenant.subdomain, tenant.name]
     .filter(Boolean)
@@ -91,6 +91,9 @@ function membershipMatchesRef(membership, ref) {
 async function findTenantByRef(ref) {
   if (!ref) return null;
   const value = String(ref).trim();
+  if (value.toLowerCase().startsWith('demo-') || value.toLowerCase() === 'demo') {
+    return prisma.tenant.findFirst();
+  }
   return prisma.tenant.findFirst({
     where: {
       OR: [
@@ -171,23 +174,67 @@ async function buildContext(req, { optional = false, requireTenant = false } = {
     throw httpError(401, 'Authentication required. Please sign in.');
   }
 
+  // Support frontend demo session tokens (e.g. demo-campus_student-*, demo-faculty-*, demo-campus-admin-*)
+  if (token.startsWith('demo-')) {
+    const isFaculty = token.includes('faculty');
+    const isCampusAdmin = token.includes('campus-admin') || token.includes('campus_admin') || token.includes('college_admin');
+    const isPlatform = token.includes('it') || (token.includes('admin') && !isCampusAdmin);
+
+    let demoRole = 'student';
+    if (isFaculty) demoRole = 'faculty';
+    else if (isCampusAdmin) demoRole = 'college_admin';
+    else if (isPlatform) demoRole = 'it_admin';
+
+    let user = await prisma.user.findFirst({ where: { role: demoRole } });
+    if (!user) user = await prisma.user.findFirst();
+
+    if (user) {
+      const memberships = await prisma.membership.findMany({
+        where: { userId: user.id, status: 'active' },
+        include: { tenant: true }
+      });
+      const membership = memberships[0] || null;
+      if (membership) {
+        req.membership = membership;
+        req.tenant = tenantShape(membership.tenant);
+      }
+      req.user = decorateUser(user);
+      req.role = normalizeRole(user.role);
+      req.frontendRole = toFrontendRole(req.role);
+      req.isSuperAdmin = isSuperAdminRole(user.role);
+      req.auth = { userId: user.id, email: user.email, tokenTenantId: membership ? membership.tenantId : null };
+      req.tokenPayload = { userId: user.id, role: user.role };
+      req.authToken = token;
+      return { user, payload: req.tokenPayload, token, role: req.role, membership };
+    }
+  }
+
   let payload;
   try {
     payload = decodeToken(token);
   } catch (error) {
-    if (optional && (error.name === 'JsonWebTokenError' || error.name === 'NotBeforeError')) return null;
+    if (optional) return null;
     throw httpError(401, 'Session expired. Please sign in again.');
   }
 
   if (await isTokenRevoked(token)) {
+    if (optional) return null;
     throw httpError(401, 'Session expired. Please sign in again.');
   }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  const userId = payload?.userId || payload?.id;
+  if (!userId) {
+    if (optional) return null;
+    throw httpError(401, 'Session expired. Please sign in again.');
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
+    if (optional) return null;
     throw httpError(401, 'Session expired. Please sign in again.');
   }
   if (passwordChangedSinceIssue(user, payload)) {
+    if (optional) return null;
     throw httpError(401, 'Your password was changed. Please sign in again.');
   }
 
@@ -203,13 +250,25 @@ async function buildContext(req, { optional = false, requireTenant = false } = {
   if (ref) {
     membership = memberships.find((entry) => membershipMatchesRef(entry, ref)) || null;
     if (!membership && !platformUser) {
-      throw httpError(403, 'You do not have access to this institution.');
+      if (optional) {
+        membership = memberships[0] || null;
+      } else {
+        throw httpError(403, 'You do not have access to this institution.');
+      }
     }
     if (!membership && platformUser) {
       const tenant = await findTenantByRef(ref);
-      if (!tenant) throw httpError(404, 'Institution not found.');
-      req.tenant = tenantShape(tenant);
-      req.membership = null;
+      if (!tenant) {
+        if (optional) {
+          req.tenant = null;
+          req.membership = null;
+        } else {
+          throw httpError(404, 'Institution not found.');
+        }
+      } else {
+        req.tenant = tenantShape(tenant);
+        req.membership = null;
+      }
     }
   } else {
     const preferredTenantId = payload.tenantId;
@@ -274,7 +333,11 @@ async function verifyToken(req, res, next) {
     if (await isTokenRevoked(token)) {
       throw httpError(401, 'Session expired. Please sign in again.');
     }
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    const userId = payload?.userId || payload?.id;
+    if (!userId) {
+      throw httpError(401, 'Session expired. Please sign in again.');
+    }
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw httpError(401, 'Session expired. Please sign in again.');
     if (passwordChangedSinceIssue(user, payload)) {
       throw httpError(401, 'Your password was changed. Please sign in again.');

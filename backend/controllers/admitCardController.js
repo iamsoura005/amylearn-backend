@@ -48,10 +48,12 @@ async function buildAdmitCardForStudent(tenantId, studentReference, options = {}
   const student = await resolveStudent(tenantId, studentReference);
   if (!student) throw httpError(404, 'Student not found in this institution.');
 
-  const forms = await getTenantJson('exam_forms', tenantId, []);
-  const ledger = await getTenantJson('exam_fee_ledger', tenantId, []);
-  const allocations = await getTenantJson('exam_allocations', tenantId, []);
-  const sessions = await prisma.examSession.findMany({ where: { tenantId }, orderBy: { startDate: 'desc' } });
+  const [forms, ledger, allocations, sessions] = await Promise.all([
+    getTenantJson('exam_forms', tenantId, []),
+    getTenantJson('exam_fee_ledger', tenantId, []),
+    getTenantJson('exam_allocations', tenantId, []),
+    prisma.examSession.findMany({ where: { tenantId }, orderBy: { startDate: 'desc' } })
+  ]);
 
   const sessionId = options.sessionId || null;
   const myForms = (Array.isArray(forms) ? forms : []).filter(
@@ -77,13 +79,11 @@ async function buildAdmitCardForStudent(tenantId, studentReference, options = {}
   }
 
   const departmentId = departmentFor(student);
-  const department = departmentId
-    ? await prisma.department.findFirst({ where: { id: departmentId, tenantId } })
-    : null;
   const profile = student.studentProfiles[0];
-  const batch = profile && profile.batchId
-    ? await prisma.batch.findFirst({ where: { id: profile.batchId, tenantId } })
-    : null;
+  const [department, batch] = await Promise.all([
+    departmentId ? prisma.department.findFirst({ where: { id: departmentId, tenantId } }) : null,
+    profile && profile.batchId ? prisma.batch.findFirst({ where: { id: profile.batchId, tenantId } }) : null
+  ]);
 
   const papers = (latest.papers || []).map((paper) => {
     const allocation = (Array.isArray(allocations) ? allocations : []).find(

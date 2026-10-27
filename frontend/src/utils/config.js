@@ -24,14 +24,20 @@ const readSelectedCollege = () => {
 };
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('it_token');
+  const url = config.url || '';
+  const isItAdmin = url.startsWith('/it-admin') || url.startsWith('/it-auth') || window.location.pathname.startsWith('/it-admin');
+  const token = isItAdmin
+    ? (localStorage.getItem('it_token') || localStorage.getItem('token'))
+    : (localStorage.getItem('token') || localStorage.getItem('it_token'));
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
     config.headers['x-user-token'] = token;
   }
   const college = readSelectedCollege();
-  if (college?.id || college?.collegeCode) {
-    config.headers['x-tenant-id'] = college.id || college.collegeCode;
+  const tenantRef = college?.collegeCode || college?.id;
+  if (tenantRef) {
+    config.headers['x-tenant-id'] = tenantRef;
   }
   return config;
 });
@@ -39,7 +45,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
+    const url = error?.config?.url || '';
+    const isAuthAttempt = /\/(signin|login|role-signup|check-email|verify-email)\b/i.test(url);
+    const isAiRequest = /\/api\/ai\b/i.test(url);
+    if (error?.response?.status === 401 && !isAuthAttempt && !isAiRequest) {
       window.dispatchEvent(new CustomEvent('amylearn-session-expired'));
     }
     return Promise.reject(error);

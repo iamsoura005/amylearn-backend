@@ -12,12 +12,12 @@ function tenantOf(req) {
 
 function assertManager(req) {
   if (req.isSuperAdmin) return;
-  if (!['college_admin', 'faculty'].includes(normalizeRole(req.role))) {
+  if (normalizeRole(req.role) !== 'college_admin') {
     throw httpError(403, 'Only campus administrators can manage academic structure.');
   }
 }
 
-async function findDepartment(req, id = req.params.id) {
+async function findDepartment(req, id = req.params.deptId || req.params.id) {
   const tenant = tenantOf(req);
   const department = await prisma.department.findFirst({ where: { id, tenantId: tenant.id } });
   if (!department) throw httpError(404, 'Department not found in this institution.');
@@ -81,6 +81,13 @@ const updateDepartment = asyncHandler(async (req, res) => {
 const deleteDepartment = asyncHandler(async (req, res) => {
   assertManager(req);
   const { department } = await findDepartment(req);
+  const counts = await prisma.department.findUnique({
+    where: { id: department.id },
+    select: { _count: { select: { subjects: true, streams: true } } }
+  });
+  if (counts?._count?.subjects > 0 || counts?._count?.streams > 0) {
+    throw httpError(409, 'Cannot delete department with active streams or courses. Reassign or remove them first.');
+  }
   await prisma.department.delete({ where: { id: department.id } });
   return res.json({ success: true, message: 'Department deleted.' });
 });
@@ -248,6 +255,10 @@ const deleteSubject = asyncHandler(async (req, res) => {
   const tenant = tenantOf(req);
   const subject = await prisma.subject.findFirst({ where: { id: req.params.id, tenantId: tenant.id } });
   if (!subject) throw httpError(404, 'Subject not found in this institution.');
+  const attendanceCount = await prisma.attendance.count({ where: { subjectId: subject.id } });
+  if (attendanceCount > 0) {
+    throw httpError(409, 'Cannot delete subject with existing attendance records.');
+  }
   await prisma.subject.delete({ where: { id: subject.id } });
   return res.json({ success: true, message: 'Subject deleted.' });
 });
@@ -562,6 +573,13 @@ const updateBatch = asyncHandler(async (req, res) => {
 const deleteBatch = asyncHandler(async (req, res) => {
   assertManager(req);
   const { batch } = await findBatch(req);
+  const [studentCount, attendanceCount] = await Promise.all([
+    prisma.studentProfile.count({ where: { batchId: batch.id } }),
+    prisma.attendance.count({ where: { batchId: batch.id } })
+  ]);
+  if (studentCount > 0 || attendanceCount > 0) {
+    throw httpError(409, 'Cannot delete batch with enrolled students or attendance records. Reassign students first.');
+  }
   await prisma.batch.delete({ where: { id: batch.id } });
   return res.json({ success: true, message: 'Batch deleted.' });
 });

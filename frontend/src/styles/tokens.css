@@ -42,8 +42,8 @@
   --radius-full: 9999px;
 
   /* Type */
-  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Jost', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-display: Arial, Helvetica, sans-serif;
 
   /* Elevation */
   --shadow-bento: 0 12px 32px -16px rgb(10 31 68 / 0.18), 0 2px 6px -2px rgb(10 31 68 / 0.06);

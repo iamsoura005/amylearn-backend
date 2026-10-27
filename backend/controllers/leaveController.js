@@ -21,14 +21,20 @@ function adminOf(req) {
 }
 
 async function decorateApplications(rows) {
-  return Promise.all(
-    rows.map(async (application) => {
-      const approver = application.approvedBy
-        ? await prisma.user.findUnique({ where: { id: application.approvedBy }, select: { id: true, name: true } })
-        : null;
-      return { ...application, approver };
-    })
-  );
+  if (!rows || !rows.length) return [];
+  const approverIds = Array.from(new Set(rows.map((row) => row.approvedBy).filter(Boolean)));
+  if (!approverIds.length) {
+    return rows.map((application) => ({ ...application, approver: null }));
+  }
+  const approvers = await prisma.user.findMany({
+    where: { id: { in: approverIds } },
+    select: { id: true, name: true }
+  });
+  const approverMap = new Map(approvers.map((user) => [user.id, user]));
+  return rows.map((application) => ({
+    ...application,
+    approver: application.approvedBy ? approverMap.get(application.approvedBy) || null : null
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -47,8 +53,13 @@ const apply = asyncHandler(async (req, res) => {
   let applicantId = req.body.userId || req.body.applicantId;
   if (!staffOf(req)) applicantId = req.user.id;
   if (!applicantId) applicantId = req.user.id;
-  const applicant = await prisma.user.findUnique({ where: { id: String(applicantId) } });
-  if (!applicant) throw httpError(404, 'Applicant not found.');
+  const applicant = await prisma.user.findFirst({
+    where: {
+      id: String(applicantId),
+      memberships: { some: { tenantId: tenant.id } }
+    }
+  });
+  if (!applicant) throw httpError(404, 'Applicant not found in this institution.');
 
   const type = LEAVE_TYPES.includes(String(req.body.type)) ? String(req.body.type) : 'Casual';
 

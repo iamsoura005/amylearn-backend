@@ -66,8 +66,12 @@ const Sidebar = ({ palette, activeTab, setTab, user, college, sections, onLogout
           <AmyLearnLogo size={32} tone="light" showTagline />
         </Link>
         {onClose ? (
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg bg-white/10 text-white/70 lg:hidden" aria-label="Close menu">
-            <X size={16} />
+          <button
+            onClick={onClose}
+            className="grid min-h-[44px] min-w-[44px] place-items-center rounded-lg bg-white/10 text-white/80 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 lg:hidden"
+            aria-label="Close menu"
+          >
+            <X size={18} />
           </button>
         ) : null}
       </div>
@@ -77,12 +81,12 @@ const Sidebar = ({ palette, activeTab, setTab, user, college, sections, onLogout
           <Avatar name={user.name} size="sm" tone={tones.avatarTone} className="!bg-white/15 !text-white" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-bold text-white">{user.name}</p>
-            <p className="truncate text-[9px] font-medium text-white/55">{user.subtitle}</p>
+            <p className="truncate text-[9px] font-medium text-white/75">{user.subtitle}</p>
           </div>
           <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold ${tones.accentBg} text-deepNavy`}>{user.badge}</span>
         </div>
-        <div className="mt-2 flex items-center gap-1.5 border-t border-white/8 pt-2 text-[9px] font-semibold text-white/55">
-          <span className="grid h-4 w-4 place-items-center rounded bg-white/10 text-[7px] font-bold text-white/60">
+        <div className="mt-2 flex items-center gap-1.5 border-t border-white/8 pt-2 text-[9px] font-semibold text-white/75">
+          <span className="grid h-4 w-4 place-items-center rounded bg-white/10 text-[7px] font-bold text-white/70">
             {college?.collegeCode || 'NBR'}
           </span>
           <span className="truncate">{college?.name || 'Northbridge University'}</span>
@@ -92,7 +96,7 @@ const Sidebar = ({ palette, activeTab, setTab, user, college, sections, onLogout
       <nav className="portal-sidebar-scroll mt-3 flex-1 overflow-y-auto px-3 pb-3">
         {sections.map((section) => (
           <div key={section.id} className={section.label ? 'mt-4' : ''}>
-            <p className="mb-1.5 px-2.5 text-[8px] font-bold uppercase tracking-[0.16em] text-white/55">
+            <p className="mb-1.5 px-2.5 text-[8px] font-bold uppercase tracking-[0.16em] text-white/75">
               {section.label || 'Portal'}
             </p>
             <div className="space-y-0.5">
@@ -180,6 +184,8 @@ export const PortalShell = ({
   const [notifOpen, setNotifOpen] = useState(false);
   const [query, setQuery] = useState('');
   const visited = useRef(new Set());
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
   const tones = PALETTES[palette] || PALETTES.teal;
 
   const currentTab = activeTab || internalTab;
@@ -189,6 +195,32 @@ export const PortalShell = ({
     else setInternalTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    if (!notifOpen && !profileOpen) return;
+    const handlePointerDown = (event) => {
+      if (notifOpen && notifRef.current && !notifRef.current.contains(event.target)) {
+        setNotifOpen(false);
+      }
+      if (profileOpen && profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setNotifOpen(false);
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notifOpen, profileOpen]);
 
   useEffect(() => {
     if (searchParams.get('tab') !== currentTab) {
@@ -270,7 +302,7 @@ export const PortalShell = ({
           <div className="flex h-[60px] items-center gap-3 px-3 sm:px-5">
             <button
               onClick={() => setMobileMenu(true)}
-              className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tones.chip} lg:hidden`}
+              className={`grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl ${tones.chip} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 lg:hidden`}
               aria-label="Open navigation"
             >
               <Menu size={18} />
@@ -300,7 +332,7 @@ export const PortalShell = ({
               {aiEnabled ? (
                 <button
                   onClick={() => setAiOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-ai-500 to-ai-300 px-2.5 py-2 text-[10px] font-bold font-jost text-white shadow-ai-glow hover:opacity-95"
+                  className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-gradient-to-r from-ai-500 to-ai-300 px-3 py-2 text-[10px] font-bold font-jost text-white shadow-ai-glow hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai-400"
                 >
                   <SparklesIcon size={13} />
                   <span className="hidden sm:inline">Ask Amy</span>
@@ -308,17 +340,17 @@ export const PortalShell = ({
               ) : null}
 
               {notifications.length ? (
-                <div className="relative">
+                <div className="relative" ref={notifRef}>
                   <button
                     onClick={() => {
                       setNotifOpen((value) => !value);
                       setProfileOpen(false);
                     }}
-                    className={`relative grid h-9 w-9 place-items-center rounded-xl border border-slate-100 bg-white text-slate-500 hover:text-deepNavy`}
+                    className="relative grid min-h-[44px] min-w-[44px] place-items-center rounded-xl border border-slate-100 bg-white text-slate-500 hover:text-deepNavy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                     aria-label="Notifications"
                   >
                     <Bell size={15} />
-                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                    <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
                   </button>
                   {notifOpen ? (
                     <div className="absolute right-0 mt-2 w-[300px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-bento">
@@ -349,13 +381,13 @@ export const PortalShell = ({
                 </div>
               ) : null}
 
-              <div className="relative">
+              <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => {
                     setProfileOpen((value) => !value);
                     setNotifOpen(false);
                   }}
-                  className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white py-1 pl-1 pr-2.5 hover:bg-slate-50"
+                  className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-100 bg-white py-1 pl-1 pr-2.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                 >
                   <Avatar name={user.name} size="sm" tone={tones.avatarTone} />
                   <span className="hidden text-left sm:block">

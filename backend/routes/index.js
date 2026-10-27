@@ -21,15 +21,15 @@ router.use('/api/leave', require('./leaveRoutes'));
 router.use('/api/library', require('./libraryRoutes'));
 router.use('/api/attendance', require('./attendanceRoutes'));
 
+// Feature flags + dashboard menu (mounted at /api and at / per the endpoint registry)
+router.use('/api', require('./systemRoutes'));
+router.use('/', require('./systemRoutes'));
+
 // Academic core + timetable (departments, classrooms, batches, notices, calendar, routine, lessons)
 router.use('/api', require('./academicRoutes'));
 
 // LMS (all-subjects, module and content management)
 router.use('/api', require('./lmsRoutes'));
-
-// Feature flags + dashboard menu (mounted at /api and at / per the endpoint registry)
-router.use('/api', require('./systemRoutes'));
-router.use('/', require('./systemRoutes'));
 
 // Unknown /api endpoints return JSON, not an HTML 404
 router.use('/api', (req, res) => {

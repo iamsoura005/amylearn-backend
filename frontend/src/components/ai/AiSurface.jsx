@@ -59,6 +59,15 @@ Ask me to explain a concept, quiz you, or build a mind map. You can also upload 
 
   const push = (message) => setMessages((prev) => [...prev, { id: `m-${++counter.current}`, ...message }]);
 
+  const cleanAiResponse = (raw) => {
+    if (!raw || typeof raw !== 'string') return '';
+    return raw
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+      .replace(/^>\s*\*\*Step-by-Step Reasoning:\*\*[\s\S]*?(?=\n\n[^\n]|$)/i, '')
+      .trim();
+  };
+
   const send = async (text) => {
     const message = (text ?? input).trim();
     if (!message || sending) return;
@@ -69,8 +78,9 @@ Ask me to explain a concept, quiz you, or build a mind map. You can also upload 
       const { data } = await api.post(AI.CHAT, { message, context: { userName, classroomName }, mode });
       const reply = data?.reply || data?.data?.reply;
       if (!reply) throw new Error('Empty AI response');
-      push({ role: 'assistant', content: reply });
-    } catch {
+      push({ role: 'assistant', content: cleanAiResponse(reply) });
+    } catch (err) {
+      console.error('[AiSurface] API call failed:', err?.response?.status, err?.response?.data || err?.message);
       const fallback = generateMockAiResponse(message, mode, userName);
       push({ role: 'assistant', content: fallback.reply, offline: true });
       setOffline(true);

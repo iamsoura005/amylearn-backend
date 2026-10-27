@@ -54,7 +54,7 @@ const TAB_COMPONENTS = {
 
 const CampusAdminDashboard = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, selectedCollege, logoutCampusAdmin } = useAuth();
   const { triggerPopup } = useErrorPopup();
   const initialTab = searchParams.get('tab');
@@ -70,6 +70,13 @@ const CampusAdminDashboard = () => {
       setLoading(false);
     }, delay);
     return () => window.clearTimeout(timer);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!searchParams.get('tab') || searchParams.get('tab') !== activeTab) {
+      setSearchParams(activeTab === 'overview' ? {} : { tab: activeTab }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const college = selectedCollege || { name: 'Northbridge University', collegeCode: 'NBR' };

@@ -28,7 +28,38 @@ export const DataTable = ({
 
   return (
     <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs ${className}`}>
-      <div className="overflow-x-auto" style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}>
+      {/* Mobile Stack View (< 640px) */}
+      <div className="block divide-y divide-slate-100 sm:hidden">
+        {sorted.length === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-slate-500">
+            {empty || 'No records yet.'}
+          </div>
+        ) : (
+          sorted.map((row, rowIndex) => (
+            <div
+              key={row[keyField] ?? rowIndex}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={`p-3.5 space-y-2 transition-colors ${
+                onRowClick ? 'cursor-pointer active:bg-blue-50/50' : ''
+              }`}
+            >
+              {columns.map((col) => (
+                <div key={col.key} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    {col.label}
+                  </span>
+                  <div className="text-right font-medium text-slate-700">
+                    {col.render ? col.render(row, rowIndex) : row[col.key] ?? '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Tablet & Desktop Table View (>= 640px) */}
+      <div className="hidden sm:block overflow-x-auto" style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}>
         <table className="w-full min-w-[640px] border-collapse text-left">
           <thead className="bg-slate-50/80">
             <tr>

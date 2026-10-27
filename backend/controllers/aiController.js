@@ -7,25 +7,35 @@ const {
   AiServiceError,
   isAiConfigured,
   generateTutorResponse,
-  processMultimodalInput
+  processMultimodalInput,
+  extractText
 } = require('../services/openSourceAiService');
 const { extractDocument, detectKind } = require('../services/fileParserService');
 
 const MAX_TEXT_CHARS = 16000;
 const TASK_TYPES = ['summarize', 'solve', 'exam_quiz', 'mindmap'];
 
+const FORMAT_INSTRUCTIONS =
+  '\n\nCRITICAL RESPONSE STRUCTURE RULES:' +
+  '\n1. Structure every response cleanly with standard Markdown: brief opening, clear ### Headings, bold key terms, and tidy bullet points.' +
+  '\n2. Whenever presenting comparisons, differences, multi-feature breakdowns, pros/cons, classifications, or metrics, ALWAYS format them as a clean GitHub-flavored Markdown table with pipe syntax (`| Col 1 | Col 2 |` and `|---|---|`).' +
+  '\n3. NEVER use em-dashes (—) or hyphen lines as fake tables. Use standard Markdown tables with pipes, or clean bullet points.' +
+  '\n4. Ensure tables have concise headers and well-aligned cells.' +
+  '\n5. Do not output raw internal thinking, reasoning tokens, or <think> blocks.';
+
 const SYSTEM_PROMPTS = {
   tutor:
     'You are a Socratic tutor inside the AmyLearn academic platform. Guide the student ' +
     'step by step, ask clarifying questions, and never reveal the final answer immediately. ' +
-    'Be friendly, encouraging and concise.',
+    'Be friendly, encouraging and concise.' +
+    FORMAT_INSTRUCTIONS,
   mindmap:
     'You generate Mermaid.js mind maps. Output ONLY a ```mermaid graph TD code block. ' +
     'Keep it structured, hierarchical and study-friendly. No prose outside the code block.',
   default:
-    'You are a supportive study companion inside the AmyLearn academic platform. ' +
-    'Give clear, concise markdown explanations personalised for the learner, with examples ' +
-    'when helpful. If asked to make a mind map, output ONLY a ```mermaid graph TD code block.'
+    'You are a supportive, high-clarity academic study companion inside the AmyLearn platform. ' +
+    'Provide structured, well-formatted explanations personalized for the learner with concrete examples.' +
+    FORMAT_INSTRUCTIONS
 };
 
 function cleanMermaidCode(raw) {
@@ -44,9 +54,15 @@ function wrapMermaid(code) {
 }
 
 function gpuOfflineReply() {
+  if (!isAiConfigured()) {
+    return (
+      'The AmyLearn AI assistant is ready, but no API key is set yet.\n\n' +
+      'To enable fast AI reasoning, add your free **GROQ_API_KEY** (from console.groq.com) to `backend/.env`.'
+    );
+  }
   return (
-    'Sorry — the AmyLearn AI study service is currently offline. The GPU inference ' +
-    'endpoint did not respond. Your data is safe, and you can try again in a few minutes.'
+    'The AmyLearn AI study service is momentarily unavailable. ' +
+    'The upstream inference provider did not respond. Please try again in a few moments.'
   );
 }
 
@@ -54,14 +70,13 @@ function gpuOfflineReply() {
 // POST /api/ai/chat
 // ---------------------------------------------------------------------------
 const chat = asyncHandler(async (req, res) => {
-  requireAuthenticatedUser(req);
   const message = String(req.body.message || '').trim();
   if (!message) throw httpError(400, 'Provide a message to chat with the study companion.');
 
   const mode = String(req.body.mode || 'default').toLowerCase();
   const context = req.body.context && typeof req.body.context === 'object' ? req.body.context : {};
-  const userName = context.userName || req.user.name || 'there';
-  const classroomName = context.classroomName || req.tenant ? req.tenant.name : 'your institution';
+  const userName = context.userName || (req.user ? req.user.name : 'there');
+  const classroomName = context.classroomName || (req.tenant ? req.tenant.name : 'your institution');
 
   const systemInstruction =
     (mode === 'tutor' && SYSTEM_PROMPTS.tutor) ||
@@ -72,7 +87,7 @@ const chat = asyncHandler(async (req, res) => {
   const fullMessage = `${personalised}\n\n${message}`;
 
   try {
-    const reply = await generateTutorResponse(systemInstruction, fullMessage, 1024, mode === 'mindmap' ? 0.2 : 0.7);
+    const reply = await generateTutorResponse(systemInstruction, fullMessage, 2500, mode === 'mindmap' ? 0.2 : 0.7);
     const output = mode === 'mindmap' ? wrapMermaid(reply) : reply;
     return res.json({ success: true, reply: output, mode });
   } catch (error) {
@@ -87,7 +102,6 @@ const chat = asyncHandler(async (req, res) => {
 // POST /api/ai/summarize-file  (multipart)
 // ---------------------------------------------------------------------------
 const summarizeFile = asyncHandler(async (req, res) => {
-  requireAuthenticatedUser(req);
   const taskType = TASK_TYPES.includes(String(req.body.taskType || 'summarize'))
     ? String(req.body.taskType)
     : 'summarize';

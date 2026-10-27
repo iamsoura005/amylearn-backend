@@ -82,9 +82,9 @@ export const RoiCalculatorSection = () => {
                         value={students}
                         onChange={(event) => setStudents(clamp(event.target.value, 300, 12000))}
                         aria-label="Campus size in students"
-                        className="w-[82px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-right text-[11px] font-bold text-deepNavy tabular outline-none focus:border-brandBlue/50"
+                        className="w-[82px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-right text-[11px] font-bold text-deepNavy tabular outline-none focus-visible:border-brandBlue focus-visible:ring-2 focus-visible:ring-brandBlue focus-visible:ring-offset-1"
                       />
-                      <span className="text-[9px] font-semibold text-slate-500">students</span>
+                      <span className="text-xs font-semibold text-slate-600">students</span>
                     </div>
                   </div>
                   <input
@@ -95,9 +95,9 @@ export const RoiCalculatorSection = () => {
                     step="100"
                     value={students}
                     onChange={(event) => setStudents(Number(event.target.value))}
-                    className="mt-2 w-full accent-brandBlue"
+                    className="mt-2 w-full accent-brandBlue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brandBlue focus-visible:ring-offset-2 rounded-lg"
                   />
-                  <div className="mt-1 flex justify-between text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <div className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600">
                     <span>300</span>
                     <span>12,000</span>
                   </div>
@@ -117,9 +117,9 @@ export const RoiCalculatorSection = () => {
                         value={adminHours}
                         onChange={(event) => setAdminHours(clamp(event.target.value, 5, 120))}
                         aria-label="Administrative hours per week"
-                        className="w-[76px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-right text-[11px] font-bold text-deepNavy tabular outline-none focus:border-brandBlue/50"
+                        className="w-[76px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-right text-[11px] font-bold text-deepNavy tabular outline-none focus-visible:border-brandBlue focus-visible:ring-2 focus-visible:ring-brandBlue focus-visible:ring-offset-1"
                       />
-                      <span className="text-[9px] font-semibold text-slate-500">h / week</span>
+                      <span className="text-xs font-semibold text-slate-600">h / week</span>
                     </div>
                   </div>
                   <input
@@ -130,13 +130,13 @@ export const RoiCalculatorSection = () => {
                     step="1"
                     value={adminHours}
                     onChange={(event) => setAdminHours(Number(event.target.value))}
-                    className="mt-2 w-full accent-brandBlue"
+                    className="mt-2 w-full accent-brandBlue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brandBlue focus-visible:ring-offset-2 rounded-lg"
                   />
-                  <div className="mt-1 flex justify-between text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <div className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600">
                     <span>5</span>
                     <span>120</span>
                   </div>
-                  <p className="mt-1.5 text-[9px] font-medium leading-relaxed text-slate-500">
+                  <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-slate-600">
                     Manual rosters, eligibility checks, reminder calls and report assembly across the admin team.
                   </p>
                 </div>
@@ -155,9 +155,9 @@ export const RoiCalculatorSection = () => {
                         value={printSpend}
                         onChange={(event) => setPrintSpend(clamp(event.target.value, 0, 100000))}
                         aria-label="Monthly printing and forms spend in rupees"
-                        className="w-[92px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-right text-[11px] font-bold text-deepNavy tabular outline-none focus:border-brandBlue/50"
+                        className="w-[92px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-right text-[11px] font-bold text-deepNavy tabular outline-none focus-visible:border-brandBlue focus-visible:ring-2 focus-visible:ring-brandBlue focus-visible:ring-offset-1"
                       />
-                      <span className="text-[9px] font-semibold text-slate-500">₹ / month</span>
+                      <span className="text-xs font-semibold text-slate-600">₹ / month</span>
                     </div>
                   </div>
                   <input
@@ -168,9 +168,9 @@ export const RoiCalculatorSection = () => {
                     step="1000"
                     value={printSpend}
                     onChange={(event) => setPrintSpend(Number(event.target.value))}
-                    className="mt-2 w-full accent-brandBlue"
+                    className="mt-2 w-full accent-brandBlue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brandBlue focus-visible:ring-offset-2 rounded-lg"
                   />
-                  <div className="mt-1 flex justify-between text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <div className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600">
                     <span>₹0</span>
                     <span>₹1,00,000</span>
                   </div>
@@ -227,10 +227,10 @@ export const RoiCalculatorSection = () => {
 
           <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/75 p-4 sm:p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Assumptions behind the estimate</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Assumptions behind the estimate</p>
               <Badge tone="slate">Not a quote or guarantee</Badge>
             </div>
-            <ul className="mt-3 grid gap-1.5 text-[10px] font-medium leading-relaxed text-slate-500 sm:grid-cols-2">
+            <ul className="mt-3 grid gap-1.5 text-xs font-medium leading-relaxed text-slate-600 sm:grid-cols-2">
               <li>52 operating weeks per year.</li>
               <li>35% of manual admin time redirected, at a blended ₹500 per hour.</li>
               <li>60% reduction in printing and forms spend.</li>

@@ -2,7 +2,7 @@
 
 const router = require('express').Router();
 const multer = require('multer');
-const { setTenantContext } = require('../middleware/authMiddleware');
+const { optionalTenantContext } = require('../middleware/authMiddleware');
 const { aiRateLimiter } = require('./rateLimiters');
 const { httpError } = require('../utils/apiHelpers');
 const ai = require('../controllers/aiController');
@@ -28,7 +28,7 @@ const upload = multer({
 });
 
 router.use(aiRateLimiter);
-router.use(setTenantContext);
+router.use(optionalTenantContext);
 
 router.post('/chat', ai.chat);
 router.post('/summarize-file', upload.single('file'), ai.summarizeFile);

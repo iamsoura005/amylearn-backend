@@ -33,7 +33,7 @@ const TAB_COMPONENTS = {
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, selectedCollege, logoutCollege } = useAuth();
   const { triggerPopup } = useErrorPopup();
   const initialTab = searchParams.get('tab');
@@ -49,6 +49,13 @@ const FacultyDashboard = () => {
       setLoading(false);
     }, delay);
     return () => window.clearTimeout(timer);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!searchParams.get('tab') || searchParams.get('tab') !== activeTab) {
+      setSearchParams(activeTab === 'overview' ? {} : { tab: activeTab }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const faculty = useMemo(

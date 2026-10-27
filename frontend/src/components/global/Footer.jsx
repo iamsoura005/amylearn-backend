@@ -40,14 +40,14 @@ export const Footer = ({ tone = 'light' }) => {
         <div className="grid gap-10 lg:grid-cols-[1.4fr_2fr]">
           <div>
             <AmyLearnLogo size={38} tone={dark ? 'light' : 'dark'} showTagline />
-            <p className={`mt-4 max-w-sm text-xs leading-relaxed ${dark ? 'text-white/55' : 'text-slate-500'}`}>
+            <p className={`mt-4 max-w-sm text-xs leading-relaxed ${dark ? 'text-white/80' : 'text-slate-600'}`}>
               AmyLearn brings admissions, examinations, learning resources, library circulation and AI tutoring into one
               calm, connected campus workspace.
             </p>
             <a
               href="mailto:support@amylearn.app"
               className={`mt-5 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold ${
-                dark ? 'border-white/15 text-white/75 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                dark ? 'border-white/15 text-white/85 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
               <Mail size={13} /> support@amylearn.app
@@ -57,7 +57,7 @@ export const Footer = ({ tone = 'light' }) => {
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
             {COLUMNS.map((column) => (
               <div key={column.title}>
-                <p className={`text-[10px] font-bold uppercase tracking-[0.16em] ${dark ? 'text-white/55' : 'text-slate-500'}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-[0.16em] ${dark ? 'text-white/80' : 'text-slate-600'}`}>
                   {column.title}
                 </p>
                 <ul className="mt-3 space-y-2">
@@ -67,7 +67,7 @@ export const Footer = ({ tone = 'light' }) => {
                         <a
                           href={link.to}
                           className={`text-[11px] font-semibold transition-colors ${
-                            dark ? 'text-white/65 hover:text-white' : 'text-slate-600 hover:text-deepNavy'
+                            dark ? 'text-white/80 hover:text-white' : 'text-slate-600 hover:text-deepNavy'
                           }`}
                         >
                           {link.label}
@@ -78,7 +78,7 @@ export const Footer = ({ tone = 'light' }) => {
                         <Link
                           to={link.to}
                           className={`inline-flex items-center gap-1 text-[11px] font-semibold transition-colors ${
-                            dark ? 'text-white/65 hover:text-white' : 'text-slate-600 hover:text-deepNavy'
+                            dark ? 'text-white/80 hover:text-white' : 'text-slate-600 hover:text-deepNavy'
                           }`}
                         >
                           {link.label}
@@ -95,7 +95,7 @@ export const Footer = ({ tone = 'light' }) => {
 
         <div
           className={`mt-10 flex flex-col gap-2 border-t pt-5 text-[10px] sm:flex-row sm:items-center sm:justify-between ${
-            dark ? 'border-white/10 text-white/55' : 'border-slate-100 text-slate-500'
+            dark ? 'border-white/10 text-white/75' : 'border-slate-100 text-slate-600'
           }`}
         >
           <p>© {new Date().getFullYear()} AmyLearn. Built for modern higher education.</p>

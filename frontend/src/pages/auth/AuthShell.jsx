@@ -179,17 +179,21 @@ export const AuthShell = ({
   );
 };
 
-export const AuthField = ({ label, icon: Icon, hint, children }) => (
-  <label className="block">
-    <span className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
-      {label}
+export const AuthField = ({ label, icon: Icon, hint, htmlFor, children }) => (
+  <div className="block">
+    <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="cursor-pointer">{label}</label>
+      ) : (
+        <span>{label}</span>
+      )}
       {hint}
-    </span>
-    <span className="relative block">
+    </div>
+    <div className="relative block">
       {Icon ? <Icon size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /> : null}
       {children}
-    </span>
-  </label>
+    </div>
+  </div>
 );
 
 export default AuthShell;

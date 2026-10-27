@@ -86,13 +86,10 @@ app.use((req, res, next) => {
 // Static brand assets (college logos etc.)
 app.use('/webdata', express.static(path.join(REPO_ROOT, 'webdata')));
 
-// API surface
-app.use(routes);
-
 // ---------------------------------------------------------------------------
-// Health + site verification
+// Health + site verification (mounted before api catch-all)
 // ---------------------------------------------------------------------------
-app.get('/health', async (req, res) => {
+app.get(['/health', '/api/health'], async (req, res) => {
   const payload = {
     status: 'ok',
     name: 'amylearn-backend',
@@ -105,6 +102,9 @@ app.get('/health', async (req, res) => {
   }
   return res.json(payload);
 });
+
+// API surface
+app.use(routes);
 
 const siteVerificationId = process.env.GOOGLE_SITE_VERIFICATION;
 if (siteVerificationId) {
@@ -134,6 +134,17 @@ app.use((error, req, res, next) => {
   }
   if (error && error.type === 'entity.too.large') {
     return res.status(413).json({ success: false, message: 'Request body too large.' });
+  }
+  // Prisma database known request errors (P2002 = unique constraint, P2025 = not found, P2003 = foreign key)
+  if (error && error.code === 'P2002') {
+    const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : 'field';
+    return res.status(409).json({ success: false, message: `A record with this ${target} already exists.` });
+  }
+  if (error && error.code === 'P2025') {
+    return res.status(404).json({ success: false, message: 'Requested record was not found or has been deleted.' });
+  }
+  if (error && error.code === 'P2003') {
+    return res.status(409).json({ success: false, message: 'Cannot complete operation due to linked dependencies.' });
   }
   // eslint-disable-next-line no-console
   console.error(`[server] ${req.method} ${req.originalUrl} failed:`, error.message);

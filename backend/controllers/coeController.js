@@ -50,6 +50,25 @@ async function writeForms(tenantId, forms) {
   return forms;
 }
 
+async function appendForm(tenantId, form) {
+  return updateTenantJson(FORMS_KEY, tenantId, [], (existing) => {
+    const list = Array.isArray(existing) ? existing : [];
+    const duplicate = list.find(
+      (f) =>
+        f.studentId === form.studentId &&
+        f.sessionId === form.sessionId &&
+        !['Reopened', 'Rejected', 'Cancelled'].includes(String(f.status))
+    );
+    if (duplicate) {
+      throw httpError(409, 'An examination form for this session has already been submitted.', {
+        formId: duplicate.id,
+        status: duplicate.status
+      });
+    }
+    return [...list, form];
+  });
+}
+
 async function readLedger(tenantId) {
   const ledger = await getTenantJson(FEE_LEDGER_KEY, tenantId, []);
   return Array.isArray(ledger) ? ledger : [];
@@ -58,6 +77,13 @@ async function readLedger(tenantId) {
 async function writeLedger(tenantId, ledger) {
   await setTenantJson(FEE_LEDGER_KEY, tenantId, ledger);
   return ledger;
+}
+
+async function appendLedger(tenantId, ledgerEntry) {
+  return updateTenantJson(FEE_LEDGER_KEY, tenantId, [], (existing) => {
+    const list = Array.isArray(existing) ? existing : [];
+    return [...list, ledgerEntry];
+  });
 }
 
 async function readAllocations(tenantId) {
@@ -387,8 +413,7 @@ async function submitExamForm(req, res) {
     updatedAt: now
   };
 
-  forms.push(form);
-  await writeForms(tenant.id, forms);
+  await appendForm(tenant.id, form);
 
   const ledgerEntry = {
     id: newId(),
@@ -406,9 +431,7 @@ async function submitExamForm(req, res) {
     createdAt: now,
     updatedAt: now
   };
-  const ledger = await readLedger(tenant.id);
-  ledger.push(ledgerEntry);
-  await writeLedger(tenant.id, ledger);
+  await appendLedger(tenant.id, ledgerEntry);
 
   return res.status(201).json({
     success: true,

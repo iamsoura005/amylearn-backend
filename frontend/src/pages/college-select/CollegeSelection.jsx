@@ -186,10 +186,19 @@ export const CollegeSelection = () => {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search by college name, code or city"
+                  aria-label="Search colleges by name, code or city"
                   className="min-w-0 flex-1 bg-transparent text-xs font-medium text-deepNavy placeholder:text-slate-400 focus:outline-none"
                 />
-                <span className="hidden rounded-xl bg-brandBlue px-3.5 py-2 text-[11px] font-bold text-white sm:block">
-                  {filtered.length} campuses
+                <span
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className="hidden rounded-xl bg-brandBlue px-3.5 py-2 text-[11px] font-bold text-white sm:block"
+                >
+                  {filtered.length} {filtered.length === 1 ? 'campus' : 'campuses'}
+                </span>
+                <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {filtered.length} {filtered.length === 1 ? 'campus found' : 'campuses found'}
                 </span>
               </div>
 

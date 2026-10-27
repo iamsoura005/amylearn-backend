@@ -327,10 +327,14 @@ const checkout = asyncHandler(async (req, res) => {
 
   const issuedDate = new Date();
   const dueDate = new Date(issuedDate.getTime() + LOAN_DAYS * 24 * 60 * 60 * 1000);
-  const updated = await prisma.bookCopy.update({
-    where: { id: copy.id },
+  const result = await prisma.bookCopy.updateMany({
+    where: { id: copy.id, status: { not: 'Issued' } },
     data: { status: 'Issued', issuedToId: borrower.id, issuedDate, dueDate }
   });
+  if (result.count === 0) {
+    throw httpError(409, 'This copy is currently unavailable or has already been issued.');
+  }
+  const updated = await prisma.bookCopy.findUnique({ where: { id: copy.id } });
 
   return res.json({
     success: true,
