@@ -15,6 +15,7 @@ import FacultyOverviewTab from '@/pages/faculty/tabs/FacultyOverviewTab';
 import FacultyTimetableTab from '@/pages/faculty/tabs/FacultyTimetableTab';
 import FacultyAttendanceTab from '@/pages/faculty/tabs/FacultyAttendanceTab';
 import FacultyStudentsTab from '@/pages/faculty/tabs/FacultyStudentsTab';
+import FacultyAssignmentsTab from '@/pages/faculty/tabs/FacultyAssignmentsTab';
 import FacultyNoticesTab from '@/pages/faculty/tabs/FacultyNoticesTab';
 import FacultyOrgCalendarTab from '@/pages/faculty/tabs/FacultyOrgCalendarTab';
 import FacultyLibraryTab from '@/pages/faculty/tabs/FacultyLibraryTab';
@@ -25,6 +26,7 @@ const TAB_COMPONENTS = {
   timetable: FacultyTimetableTab,
   attendance: FacultyAttendanceTab,
   students: FacultyStudentsTab,
+  assignments: FacultyAssignmentsTab,
   notices: FacultyNoticesTab,
   'org-calendar': FacultyOrgCalendarTab,
   'digital-library': FacultyLibraryTab,

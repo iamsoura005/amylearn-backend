@@ -194,8 +194,8 @@ async function run() {
 
   // 8. Test POST /api/college-admin/users/bulk-import with CSV
   const bulkCsv = `name,email,role,department,rollNumber
-Bulk Student One,bulk1.${Date.now()}@amylearn.demo,student,Computer Science,CS-881
-Bulk Faculty Two,bulk2.${Date.now()}@amylearn.demo,faculty,Computer Science,FAC-991`;
+Bulk Student One,bulk1.${Date.now()}@amylearn.demo,student,Computer Science,CS-${Date.now().toString().slice(-4)}
+Bulk Faculty Two,bulk2.${Date.now()}@amylearn.demo,faculty,Computer Science,FAC-${Date.now().toString().slice(-4)}`;
 
   const bulkImportRes = await post(
     '/api/college-admin/users/bulk-import',
@@ -208,7 +208,44 @@ Bulk Faculty Two,bulk2.${Date.now()}@amylearn.demo,faculty,Computer Science,FAC-
     process.exit(1);
   }
 
-  console.log('\nALL 10 ENDPOINT TESTS PASSED WITH 100% SUCCESS!');
+  // 9. Test POST /api/student/courses/toggle-completion
+  const toggleRes = await post(
+    '/api/student/courses/toggle-completion',
+    { contentId: 'cnt-101', completed: true },
+    authHeaders
+  );
+  console.log('11. POST /api/student/courses/toggle-completion status:', toggleRes.status, 'Completed:', toggleRes.data?.completed);
+  if (toggleRes.status !== 200 || !toggleRes.data?.completed) {
+    console.error('Failed to toggle completion:', toggleRes);
+    process.exit(1);
+  }
+
+  // 10. Test Faculty GET /api/assignments/all-submissions and POST /api/assignments/grade
+  const allSubsRes = await get('/api/assignments/all-submissions', authHeaders);
+  console.log('12. GET /api/assignments/all-submissions status:', allSubsRes.status, 'Count:', allSubsRes.data?.submissions?.length);
+  if (allSubsRes.status !== 200) {
+    console.error('Failed to list all submissions:', allSubsRes);
+    process.exit(1);
+  }
+
+  const targetSub = allSubsRes.data.submissions[0];
+  const gradeRes = await post(
+    '/api/assignments/grade',
+    {
+      studentId: targetSub.studentId,
+      assignmentId: targetSub.assignmentId,
+      marks: 48,
+      feedback: 'Excellent work verified!'
+    },
+    authHeaders
+  );
+  console.log('13. POST /api/assignments/grade status:', gradeRes.status, 'Message:', gradeRes.data?.message);
+  if (gradeRes.status !== 200) {
+    console.error('Failed to grade assignment:', gradeRes);
+    process.exit(1);
+  }
+
+  console.log('\nALL 13 ENDPOINT TESTS PASSED WITH 100% SUCCESS!');
 }
 
 run().catch((e) => {

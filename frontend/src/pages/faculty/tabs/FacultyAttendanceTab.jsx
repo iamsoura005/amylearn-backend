@@ -73,12 +73,26 @@ const FacultyAttendanceTab = ({ triggerPopup }) => {
             tone="indigo"
             action={
               !active.marked ? (
-                <button
-                  onClick={() => markAll(presentCount < roster.length / 2)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-2.5 py-1.5 text-[9px] font-bold text-indigo-700 hover:bg-indigo-50"
-                >
-                  <CheckCheck size={11} /> {presentCount < roster.length / 2 ? 'Mark all present' : 'Mark all absent'}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      markAll(true);
+                      triggerPopup?.('Marked all students as present.', 'success');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-[9.5px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                  >
+                    <CheckCheck size={12} className="text-emerald-600" /> Mark all present
+                  </button>
+                  <button
+                    onClick={() => {
+                      markAll(false);
+                      triggerPopup?.('Marked all students as absent.', 'info');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[9.5px] font-bold text-rose-700 hover:bg-rose-100 transition-colors"
+                  >
+                    Mark all absent
+                  </button>
+                </div>
               ) : (
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700">Saved</span>
               )

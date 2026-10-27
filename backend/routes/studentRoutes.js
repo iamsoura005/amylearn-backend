@@ -18,5 +18,6 @@ router.get('/project-info', student.getProjectInfo);
 router.post('/project-info', student.saveProjectInfo);
 router.get('/payment-history', student.paymentHistory);
 router.post('/pay-fee', student.payFee);
+router.post('/courses/toggle-completion', student.toggleContentCompletion);
 
 module.exports = router;

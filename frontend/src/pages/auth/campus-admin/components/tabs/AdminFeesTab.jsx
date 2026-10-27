@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BellRing, IndianRupee, Receipt, TrendingUp } from 'lucide-react';
+import { BellRing, Download, FileSpreadsheet, IndianRupee, Receipt, TrendingUp } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { SectionCard, FilterChips, inr } from '@/components/portal/PortalKit';
@@ -16,7 +16,7 @@ const VIEW_FILTERS = [
   { id: 'defaulters', label: 'Defaulters' }
 ];
 
-const AdminFeesTab = ({ triggerPopup }) => {
+export const AdminFeesTab = ({ triggerPopup }) => {
   const [view, setView] = useState('collections');
   const [reminding, setReminding] = useState(false);
 
@@ -31,6 +31,52 @@ const AdminFeesTab = ({ triggerPopup }) => {
     }, 700);
   };
 
+  const exportReconciliationCsv = () => {
+    const timestamp = new Date().toISOString();
+    const headers = ['Department', 'Batch', 'Billed Amount (INR)', 'Collected Amount (INR)', 'Pending Amount (INR)', 'Defaulters', 'Collection Rate (%)', 'Audit Status', 'Timestamp'];
+    const rows = MOCK_FEE_COLLECTIONS.map((c) => [
+      c.department,
+      c.semester,
+      c.total,
+      c.collected,
+      c.pending,
+      c.defaulters,
+      `${c.percent}%`,
+      c.percent >= 90 ? 'Reconciled' : 'Pending Clearance',
+      timestamp
+    ]);
+
+    // Defaulters appendix
+    const defaulterHeaders = ['', '', '', '', '', '', '', '', ''];
+    const defaulterSection = [
+      defaulterHeaders,
+      ['--- DEFAULTER AUDIT APPENDIX ---', '', '', '', '', '', '', '', ''],
+      ['Roll Number', 'Student Name', 'Department', 'Semester', 'Due Amount (INR)', 'Days Overdue', 'Notices Sent', 'COE Flag', 'Timestamp'],
+      ...MOCK_FEE_DEFAULTERS.map((d) => [
+        d.rollNumber,
+        d.name,
+        d.department,
+        d.semester,
+        d.due,
+        d.daysOverdue,
+        d.noticesSent,
+        d.daysOverdue > 30 ? 'Admit Card Withheld' : 'Grace Period',
+        timestamp
+      ])
+    ];
+
+    const allLines = [headers, ...rows, ...defaulterSection];
+    const csvContent = allLines.map((line) => line.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reconciled-institutional-fee-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    triggerPopup?.('Reconciled institutional accounts ledger exported as CSV for finance audit.', 'success');
+  };
+
   const defaulters = useMemo(() => MOCK_FEE_DEFAULTERS, []);
 
   return (
@@ -42,15 +88,23 @@ const AdminFeesTab = ({ triggerPopup }) => {
         icon={IndianRupee}
         tone="teal"
         actions={
-          view === 'defaulters' ? (
+          <div className="flex items-center gap-2">
             <button
-              onClick={remindAll}
-              disabled={reminding}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2.5 text-[11px] font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+              onClick={exportReconciliationCsv}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-teal-300 bg-teal-50 px-3.5 py-2 text-[11px] font-bold text-teal-800 hover:bg-teal-100 transition-colors"
             >
-              <BellRing size={13} /> {reminding ? 'Sending…' : 'Remind all defaulters'}
+              <Download size={13} /> Reconciled audit CSV
             </button>
-          ) : null
+            {view === 'defaulters' ? (
+              <button
+                onClick={remindAll}
+                disabled={reminding}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-2 text-[11px] font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                <BellRing size={13} /> {reminding ? 'Sending…' : 'Remind all defaulters'}
+              </button>
+            ) : null}
+          </div>
         }
       />
 

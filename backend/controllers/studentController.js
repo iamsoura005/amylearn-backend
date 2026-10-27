@@ -372,6 +372,42 @@ const payFee = asyncHandler(async (req, res) => {
   });
 });
 
+// POST /api/student/courses/toggle-completion
+const toggleContentCompletion = asyncHandler(async (req, res) => {
+  const { contentId, completed } = req.body;
+  if (!contentId) {
+    throw httpError(400, 'contentId is required.');
+  }
+
+  const updatedMap = await updateTenantJson(COMPLETIONS_KEY, null, {}, (current) => {
+    const map = current && typeof current === 'object' ? { ...current } : {};
+    const userList = Array.isArray(map[req.user.id]) ? [...map[req.user.id]] : [];
+    const index = userList.indexOf(contentId);
+
+    if (completed === false) {
+      if (index > -1) userList.splice(index, 1);
+    } else if (completed === true) {
+      if (index === -1) userList.push(contentId);
+    } else {
+      if (index > -1) userList.splice(index, 1);
+      else userList.push(contentId);
+    }
+
+    map[req.user.id] = userList;
+    return map;
+  });
+
+  const isCompleted = (updatedMap[req.user.id] || []).includes(contentId);
+
+  return res.json({
+    success: true,
+    contentId,
+    completed: isCompleted,
+    completedCount: (updatedMap[req.user.id] || []).length,
+    allCompletedIds: updatedMap[req.user.id] || []
+  });
+});
+
 module.exports = {
   dashboard,
   courses,
@@ -385,6 +421,7 @@ module.exports = {
   saveProjectInfo,
   paymentHistory,
   payFee,
+  toggleContentCompletion,
   attendanceStats,
   studentLedger
 };

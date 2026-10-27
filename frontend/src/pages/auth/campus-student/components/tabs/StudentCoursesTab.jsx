@@ -22,6 +22,7 @@ import { VideoPlayer, PdfViewer } from '@/components/common/VideoPlayer';
 import { SectionCard, SoftStat } from './shared/StudentTabKit';
 import { useLocalStorage } from '@/hooks/useLiveResource';
 import { MOCK_COURSES, MOCK_COURSE_MODULES } from '@/pages/auth/campus-student/constants/campusStudentConstants';
+import api from '@/utils/config';
 
 const OPEN_KEY = 'amylearn_course_completion';
 
@@ -52,12 +53,39 @@ export const StudentCoursesTab = ({ triggerPopup }) => {
   const averageProgress = Math.round(MOCK_COURSES.reduce((sum, item) => sum + item.progress, 0) / MOCK_COURSES.length);
   const selectedOpen = openModule && modules.some((module) => module.id === openModule) ? openModule : modules[0]?.id;
 
-  const toggleComplete = (content) => {
-    setCompleted({ ...completed, [content.id]: !completed[content.id] });
+  const toggleComplete = async (content) => {
+    const nextState = !completed[content.id];
+    setCompleted({ ...completed, [content.id]: nextState });
     triggerPopup?.(
-      completed[content.id] ? `Marked “${content.title}” as not completed.` : `“${content.title}” marked complete.`,
+      nextState ? `“${content.title}” marked complete.` : `Marked “${content.title}” as incomplete.`,
       'success'
     );
+    try {
+      await api.post('/api/student/courses/toggle-completion', {
+        contentId: content.id,
+        completed: nextState
+      });
+    } catch {
+      // Offline fallback
+    }
+  };
+
+  const markModuleComplete = async (module) => {
+    const next = { ...completed };
+    module.contents.forEach((c) => {
+      next[c.id] = true;
+    });
+    setCompleted(next);
+    triggerPopup?.(`All items in “${module.title}” marked complete.`, 'success');
+    try {
+      await Promise.all(
+        module.contents.map((c) =>
+          api.post('/api/student/courses/toggle-completion', { contentId: c.id, completed: true })
+        )
+      );
+    } catch {
+      // Offline fallback
+    }
   };
 
   const openContent = (content) => {
@@ -199,6 +227,16 @@ export const StudentCoursesTab = ({ triggerPopup }) => {
                   </button>
                   {open ? (
                     <div className="space-y-1 px-2 pb-2 sm:px-3">
+                      {moduleDone < module.contents.length ? (
+                        <div className="flex justify-end pb-1">
+                          <button
+                            onClick={() => markModuleComplete(module)}
+                            className="inline-flex items-center gap-1 text-[9px] font-bold text-violet-700 hover:text-violet-900 transition-colors"
+                          >
+                            <CheckCircle2 size={10} /> Mark all items complete
+                          </button>
+                        </div>
+                      ) : null}
                       {module.contents.map((content) => {
                         const done = Boolean(completed[content.id]);
                         return (
