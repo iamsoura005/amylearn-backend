@@ -8,7 +8,8 @@ const {
   getTenantJson,
   setTenantJson,
   updateTenantJson,
-  getJson
+  getJson,
+  nextSequence
 } = require('../utils/systemConfig');
 const { requireTenant, requireAuthenticatedUser } = require('../middleware/authMiddleware');
 

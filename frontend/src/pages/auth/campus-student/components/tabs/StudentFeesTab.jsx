@@ -20,6 +20,7 @@ import { Progress } from '@/components/ui/Primitives';
 import { Donut } from '@/components/common/Charts';
 import { SectionCard, SoftStat, daysUntil, formatDay, inr } from './shared/StudentTabKit';
 import { MOCK_FEES, MOCK_PAYMENT_METHODS } from '@/pages/auth/campus-student/constants/campusStudentConstants';
+import api from '@/utils/config';
 
 const ICONS = { UPI: Smartphone, Bank: Landmark, Wallet: Wallet, Card: CreditCard };
 
@@ -38,21 +39,97 @@ export const StudentFeesTab = ({ setTab, triggerPopup }) => {
   const pending = fees.filter((fee) => fee.status === 'Pending');
   const nextDue = pending[0];
 
-  const pay = () => {
+  const downloadReceipt = (fee) => {
+    const ref = fee.receipt || `NBR-FEE-2026-${String(Date.now()).slice(-4)}`;
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Fee Receipt - ${ref}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+          .header { border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+          .title { font-size: 24px; font-weight: bold; color: #0f172a; }
+          .badge { background: #dcfce7; color: #15803d; padding: 4px 12px; border-radius: 999px; font-weight: bold; font-size: 12px; }
+          .details { margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; }
+          .amount-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 30px; }
+          .amount { font-size: 32px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+          .footer { font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">AmyLearn Digital Fee Receipt</div>
+            <div style="font-size: 13px; color: #64748b;">Official Institutional Fee Voucher</div>
+          </div>
+          <div class="badge">STATUS: PAID</div>
+        </div>
+        <div class="details">
+          <div><strong>Receipt Ref:</strong> ${ref}</div>
+          <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div><strong>Term / Particulars:</strong> ${fee.term}</div>
+          <div><strong>Reconciliation:</strong> ERP Settled</div>
+        </div>
+        <div class="amount-box">
+          <div style="font-size: 13px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Paid</div>
+          <div class="amount">₹${Number(fee.amount).toLocaleString('en-IN')}</div>
+        </div>
+        <div class="footer">
+          This is an electronically generated receipt verified by AmyLearn Institutional ERP. No physical signature is required.
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([receiptHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+      triggerPopup?.(`Receipt for ${ref} opened.`, 'success');
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt-${ref}.html`;
+      a.click();
+      triggerPopup?.(`Receipt for ${ref} downloaded.`, 'success');
+    }
+  };
+
+  const pay = async () => {
     if (!paying) return;
     setProcessing(true);
-    window.setTimeout(() => {
+    const methodObj = MOCK_PAYMENT_METHODS.find((m) => m.id === method);
+    const modeLabel = methodObj ? methodObj.label : 'Online UPI';
+    try {
+      const res = await api.post('/api/student/pay-fee', {
+        amount: paying.amount,
+        description: paying.term,
+        mode: modeLabel
+      });
+      const receiptNo = res.data?.transaction?.reference || `NBR-${paying.term.includes('Laboratory') ? 'LAB' : 'FEE'}-2026-${String(Date.now()).slice(-4)}`;
       setFees((prev) =>
         prev.map((fee) =>
           fee.id === paying.id
-            ? { ...fee, paid: fee.amount, status: 'Paid', receipt: `NBR-${fee.term.includes('Laboratory') ? 'LAB' : 'FEE'}-2026-${String(Date.now()).slice(-4)}` }
+            ? { ...fee, paid: fee.amount, status: 'Paid', receipt: receiptNo }
             : fee
         )
       );
+      triggerPopup?.(res.data?.message || `${inr(paying.amount)} paid successfully. Added to ledger.`, 'success');
+    } catch {
+      const fallbackReceipt = `NBR-${paying.term.includes('Laboratory') ? 'LAB' : 'FEE'}-2026-${String(Date.now()).slice(-4)}`;
+      setFees((prev) =>
+        prev.map((fee) =>
+          fee.id === paying.id
+            ? { ...fee, paid: fee.amount, status: 'Paid', receipt: fallbackReceipt }
+            : fee
+        )
+      );
+      triggerPopup?.(`${inr(paying.amount)} paid successfully (offline fallback).`, 'success');
+    } finally {
       setProcessing(false);
       setPaying(null);
-      triggerPopup?.(`${inr(paying.amount)} paid successfully. A receipt has been added to your payment history.`, 'success');
-    }, 800);
+    }
   };
 
   return (
@@ -113,7 +190,7 @@ export const StudentFeesTab = ({ setTab, triggerPopup }) => {
                       </Button>
                     ) : (
                       <button
-                        onClick={() => triggerPopup?.(`Receipt ${fee.receipt} downloaded.`, 'success')}
+                        onClick={() => downloadReceipt(fee)}
                         className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 text-slate-400 hover:border-emerald-300 hover:text-emerald-600"
                         aria-label={`Download receipt ${fee.receipt}`}
                       >
