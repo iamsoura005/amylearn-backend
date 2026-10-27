@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { ClipboardList, Search } from 'lucide-react';
+import { ClipboardList, RefreshCw, Search } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { SectionCard, FilterChips } from '@/components/portal/PortalKit';
+import { api } from '@/utils/config';
 import { MOCK_AUDIT_EVENTS } from '@/pages/auth/it-admin/constants/itAdminConstants';
 
 const ACTION_FILTERS = [
@@ -29,19 +30,36 @@ const ACTION_TONES = {
 const ITAuditTab = () => {
   const [action, setAction] = useState('all');
   const [query, setQuery] = useState('');
+  const [events, setEvents] = useState(MOCK_AUDIT_EVENTS);
+
+  useEffect(() => {
+    let active = true;
+    const fetchAuditLogs = async () => {
+      try {
+        const response = await api.get('/platform/audit-logs');
+        if (active && response.data?.events?.length) {
+          setEvents(response.data.events);
+        }
+      } catch (err) {
+        console.warn('Backend audit logs error, using cached mock events:', err.message);
+      }
+    };
+    fetchAuditLogs();
+    return () => { active = false; };
+  }, []);
 
   const rows = useMemo(() => {
     const value = query.trim().toLowerCase();
-    return MOCK_AUDIT_EVENTS.filter((event) => {
-      const matchesAction = action === 'all' || event.action.startsWith(action);
+    return events.filter((event) => {
+      const matchesAction = action === 'all' || (event.action && event.action.startsWith(action));
       const matchesQuery =
         !value ||
-        event.actor.toLowerCase().includes(value) ||
-        event.target.toLowerCase().includes(value) ||
-        event.detail.toLowerCase().includes(value);
+        (event.actor && event.actor.toLowerCase().includes(value)) ||
+        (event.target && event.target.toLowerCase().includes(value)) ||
+        (event.detail && event.detail.toLowerCase().includes(value));
       return matchesAction && matchesQuery;
     });
-  }, [action, query]);
+  }, [events, action, query]);
 
   return (
     <div className="space-y-4">

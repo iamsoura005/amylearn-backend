@@ -226,8 +226,58 @@ const tenantsList = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 // Requests
 // ---------------------------------------------------------------------------
+const INITIAL_COLLEGE_REQUESTS = [
+  {
+    id: 'req-apex-01',
+    collegeName: 'Apex Institute of Technology & Sciences',
+    collegeCode: 'AITS',
+    domain: 'apex-tech',
+    applicantName: 'Dr. Ramesh Narayan',
+    applicantEmail: 'principal@apextech.edu.in',
+    phone: '+91 94432 18900',
+    type: 'Engineering & Technology',
+    campusSize: '3,200 students · 180 faculty',
+    status: 'Pending',
+    submittedAt: '2026-10-25T10:30:00.000Z',
+    notes: 'Seeking enterprise campus deployment with NAAC compliance and COE automation.'
+  },
+  {
+    id: 'req-zenith-02',
+    collegeName: 'Zenith Global Business School',
+    collegeCode: 'ZGBS',
+    domain: 'zenith-mba',
+    applicantName: 'Prof. Ananya Sen',
+    applicantEmail: 'dean@zenith.ac.in',
+    phone: '+91 98840 76211',
+    type: 'Management & Business',
+    campusSize: '1,450 students · 75 faculty',
+    status: 'Pending',
+    submittedAt: '2026-10-22T14:15:00.000Z',
+    notes: 'Multi-stream trimester curriculum with case study library requirements.'
+  },
+  {
+    id: 'req-metro-03',
+    collegeName: 'Metro Polytechnic College',
+    collegeCode: 'MPC',
+    domain: 'metro-poly',
+    applicantName: 'Er. S. Balaji',
+    applicantEmail: 'registrar@metropoly.edu',
+    phone: '+91 97910 43520',
+    type: 'Polytechnic & Diploma',
+    campusSize: '2,100 students · 110 faculty',
+    status: 'Pending',
+    submittedAt: '2026-10-20T09:00:00.000Z',
+    notes: 'Requires biometric attendance integration and semester dues ledger.'
+  }
+];
+
 const collegeRequests = asyncHandler(async (req, res) => {
-  const stored = await getJson('college_requests', []);
+  let stored = await getJson('college_requests', []);
+  if (!Array.isArray(stored) || !stored.length) {
+    stored = INITIAL_COLLEGE_REQUESTS;
+    await setJson('college_requests', stored);
+  }
+
   const suspended = await prisma.tenant.findMany({
     where: { status: 'suspended' },
     orderBy: { createdAt: 'desc' },
@@ -255,6 +305,33 @@ const collegeRequests = asyncHandler(async (req, res) => {
   });
 });
 
+const actionCollegeRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const decision = String(req.body.decision || req.body.status || 'Approved');
+  const reason = req.body.reason || '';
+
+  let stored = await getJson('college_requests', []);
+  if (!Array.isArray(stored) || !stored.length) {
+    stored = [...INITIAL_COLLEGE_REQUESTS];
+  }
+
+  const target = stored.find((item) => item.id === id);
+  if (!target) throw httpError(404, 'Onboarding request not found.');
+
+  target.status = decision;
+  target.decisionReason = reason;
+  target.actionedAt = new Date().toISOString();
+  target.actionedBy = req.user?.email || 'IT Administrator';
+
+  await setJson('college_requests', stored);
+
+  return res.json({
+    success: true,
+    message: `Institution onboarding request ${decision.toLowerCase()}.`,
+    request: target
+  });
+});
+
 const managerRequests = asyncHandler(async (req, res) => {
   const stored = await getJson('manager_requests', []);
   const managers = await prisma.user.findMany({
@@ -266,6 +343,19 @@ const managerRequests = asyncHandler(async (req, res) => {
     requests: Array.isArray(stored) ? stored : [],
     managers: managers.map((user) => toUserDTO(user))
   });
+});
+
+const listAuditLogs = asyncHandler(async (req, res) => {
+  const stored = await getJson('platform_audit_logs', []);
+  const initialLogs = [
+    { id: 'aud-1', at: '2026-10-27T10:14:00.000Z', action: 'tenant.create', target: 'Northbridge University', detail: 'Tenant schema & root admin provisioned', actor: 'it_admin@amylearn.app' },
+    { id: 'aud-2', at: '2026-10-27T08:30:00.000Z', action: 'feature.toggle', target: 'ai_tutor', detail: 'Enabled AI tutor for tier-1 tenants', actor: 'platform_lead@amylearn.app' },
+    { id: 'aud-3', at: '2026-10-26T16:45:00.000Z', action: 'role.assign', target: 'college_admin', detail: 'Assigned COE & Registrar permissions', actor: 'it_admin@amylearn.app' },
+    { id: 'aud-4', at: '2026-10-26T14:20:00.000Z', action: 'ticket.update', target: 'TCK-1092', detail: 'Resolved LDAP sync latency issue', actor: 'it_support@amylearn.app' },
+    { id: 'aud-5', at: '2026-10-25T11:00:00.000Z', action: 'billing.invoice', target: 'Northbridge University', detail: 'Generated semester enterprise invoice INV-2026-001', actor: 'billing_daemon' }
+  ];
+  const list = Array.isArray(stored) && stored.length ? stored : initialLogs;
+  return res.json({ success: true, count: list.length, events: list });
 });
 
 // ---------------------------------------------------------------------------
@@ -579,7 +669,9 @@ module.exports = {
   deleteCollege,
   tenantsList,
   collegeRequests,
+  actionCollegeRequest,
   managerRequests,
+  listAuditLogs,
   listUsers,
   getMenuConfig,
   saveMenuConfig,

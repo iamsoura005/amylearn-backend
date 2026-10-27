@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 
 const { connectDB, pingDatabase } = require('./config/db');
 const { HttpError } = require('./utils/apiHelpers');
+const { apiRateLimiter } = require('./routes/rateLimiters');
 const routes = require('./routes');
 const { startWeeklyKeepAliveJob } = require('./services/dbKeepAliveService');
 
@@ -62,8 +63,21 @@ app.disable('x-powered-by');
 
 app.use(
   helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: ["'self'", 'http://localhost:*', 'https://*.amylearn.app', 'https://*.hf.space', 'https://*'],
+        frameAncestors: ["'self'"],
+        objectSrc: ["'none'"]
+      }
+    },
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
   })
 );
 app.use(cors({ origin: corsOrigin, credentials: true }));
@@ -104,6 +118,7 @@ app.get(['/health', '/api/health'], async (req, res) => {
 });
 
 // API surface
+app.use('/api/', apiRateLimiter);
 app.use(routes);
 
 const siteVerificationId = process.env.GOOGLE_SITE_VERIFICATION;

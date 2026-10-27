@@ -11,7 +11,7 @@ router.use('/api/cron', require('./cronRoutes'));
 
 router.use('/api/auth', require('./authRoutes'));
 router.use('/it-auth', require('./itAuthAliasRoutes'));
-router.use('/it-admin', require('./platformRoutes'));
+router.use(['/it-admin', '/api/platform', '/api/it-admin'], require('./platformRoutes'));
 router.use('/session', require('./sessionRoutes'));
 router.use('/api/college-admin', require('./collegeAdminRoutes'));
 router.use('/api/student', require('./studentRoutes'));
@@ -27,10 +27,10 @@ router.use('/api', require('./systemRoutes'));
 router.use('/', require('./systemRoutes'));
 
 // Academic core + timetable (departments, classrooms, batches, notices, calendar, routine, lessons)
-router.use('/api', require('./academicRoutes'));
+router.use(['/api/academic', '/api'], require('./academicRoutes'));
 
 // LMS (all-subjects, module and content management)
-router.use('/api', require('./lmsRoutes'));
+router.use(['/api/lms', '/api'], require('./lmsRoutes'));
 
 // Unknown /api endpoints return JSON, not an HTML 404
 router.use('/api', (req, res) => {

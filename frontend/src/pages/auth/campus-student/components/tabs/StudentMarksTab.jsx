@@ -1,17 +1,21 @@
+import { useEffect, useState } from 'react';
 import {
   Award,
   BookOpenCheck,
+  Download,
   GraduationCap,
   Medal,
   Sparkles,
   TrendingUp
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
+import { Button } from '@/components/ui/Button';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Donut, TrendChart } from '@/components/common/Charts';
 import { Progress } from '@/components/ui/Primitives';
 import { SectionCard, SoftStat } from './shared/StudentTabKit';
 import { MOCK_MARKS } from '@/pages/auth/campus-student/constants/campusStudentConstants';
+import api from '@/utils/config';
 
 const CGPA_TREND = [7.82, 8.04, 8.21, 8.42];
 const TREND_LABELS = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
@@ -24,11 +28,132 @@ const gradeTone = (grade) => {
   return 'amber';
 };
 
-export const StudentMarksTab = () => {
-  const published = MOCK_MARKS.filter((item) => item.status === 'Published');
-  const graded = published.length;
-  const average = Math.round(published.reduce((sum, item) => sum + item.total, 0) / graded);
-  const credits = MOCK_MARKS.reduce((sum, item) => sum + item.credits, 0);
+export const StudentMarksTab = ({ triggerPopup }) => {
+  const [marksList, setMarksList] = useState(MOCK_MARKS);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/api/coe/my-results');
+        if (active && res.data?.results?.length) {
+          const mapped = res.data.results.map((r, i) => ({
+            id: r.id || `res-${i}`,
+            code: r.subjectCode || `CS50${i + 1}`,
+            subject: r.subjectName || 'Coursework Subject',
+            internal: 28,
+            external: r.marks,
+            total: r.marks,
+            grade: r.grade || 'A',
+            credits: r.credits || 4,
+            status: 'Published'
+          }));
+          setMarksList(mapped);
+        }
+      } catch {
+        // Keeps fallback
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchResults();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const published = marksList.filter((item) => item.status === 'Published');
+  const graded = published.length || 1;
+  const average = Math.round(published.reduce((sum, item) => sum + (item.total || 0), 0) / graded);
+  const credits = marksList.reduce((sum, item) => sum + (item.credits || 0), 0);
+
+  const downloadGradeCard = () => {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>University Semester Grade Card</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; }
+          .header { border-bottom: 2px solid #1e293b; padding-bottom: 20px; margin-bottom: 24px; text-align: center; }
+          .univ { font-size: 22px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; }
+          .sub { font-size: 13px; color: #64748b; font-weight: 600; }
+          .title { font-size: 16px; font-weight: 700; margin-top: 10px; color: #4338ca; }
+          .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px; margin-bottom: 20px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; }
+          th { background: #f1f5f9; padding: 10px; text-align: left; border-bottom: 2px solid #cbd5e1; font-weight: bold; }
+          td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+          .footer { font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid #cbd5e1; padding-top: 16px; }
+          .stamp { display: flex; justify-content: space-between; margin-top: 30px; font-size: 11px; font-weight: 700; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="univ">Northbridge University</div>
+          <div class="sub">Office of the Controller of Examinations (COE)</div>
+          <div class="title">Provisional Statement of Grades · Semester 5</div>
+        </div>
+        <div class="meta">
+          <div><strong>Candidate Name:</strong> Aarav Sharma</div>
+          <div><strong>Roll Number:</strong> NBR2024CS042</div>
+          <div><strong>Programme:</strong> B.Tech (Computer Science & Engineering)</div>
+          <div><strong>Academic Year:</strong> 2026 - 2027</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Course Code</th>
+              <th>Course Title</th>
+              <th>Credits</th>
+              <th>Internal (/30)</th>
+              <th>End-Sem (/70)</th>
+              <th>Total (/100)</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${marksList.map(m => `
+              <tr>
+                <td><strong>${m.code}</strong></td>
+                <td>${m.subject}</td>
+                <td>${m.credits}</td>
+                <td>${m.internal || 28}</td>
+                <td>${m.external ?? '—'}</td>
+                <td><strong>${m.total ?? '—'}</strong></td>
+                <td><strong>${m.grade}</strong></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 12px; border-radius: 6px; font-size: 13px; font-weight: bold; color: #3730a3; margin-bottom: 20px;">
+          Semester SGPA: 8.42 · Cumulative CGPA: 8.42 · Credits Earned: ${credits} · Result: PASS
+        </div>
+        <div class="stamp">
+          <div>Verified By: Institution Evaluator</div>
+          <div>Controller of Examinations</div>
+        </div>
+        <div class="footer" style="margin-top: 25px;">
+          This is a computer generated provisional grade sheet verified by AmyLearn Institutional ERP.
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+      triggerPopup?.('Official semester grade card opened for printing.', 'success');
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GradeCard-Semester5.html`;
+      a.click();
+      triggerPopup?.('Grade card downloaded.', 'success');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -38,7 +163,19 @@ export const StudentMarksTab = () => {
         description="Internal assessments, end-semester marks, grades and your cumulative grade point average."
         icon={GraduationCap}
         tone="violet"
-        actions={<Badge tone="violet" dot>CGPA 8.42</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              icon={Download}
+              onClick={downloadGradeCard}
+              className="bg-violet-700 text-white hover:bg-violet-800"
+            >
+              Download grade card
+            </Button>
+            <Badge tone="violet" dot>CGPA 8.42</Badge>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">

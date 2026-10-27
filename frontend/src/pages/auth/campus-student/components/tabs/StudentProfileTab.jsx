@@ -29,6 +29,7 @@ import { Avatar, Divider, Toggle } from '@/components/ui/Primitives';
 import { Modal } from '@/components/ui/Modal';
 import { InfoRow } from '@/components/common/StatCard';
 import { SectionCard, SoftStat } from './shared/StudentTabKit';
+import api from '@/utils/config';
 
 const DEFAULT_PREFERENCES = {
   emailNotices: true,
@@ -51,7 +52,7 @@ export const StudentProfileTab = ({ session, college, triggerPopup }) => {
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [changing, setChanging] = useState(false);
 
-  const changePassword = () => {
+  const changePassword = async () => {
     if (passwords.next.length < 8) {
       triggerPopup?.('New password must be at least 8 characters.', 'warning');
       return;
@@ -61,12 +62,20 @@ export const StudentProfileTab = ({ session, college, triggerPopup }) => {
       return;
     }
     setChanging(true);
-    window.setTimeout(() => {
-      setChanging(false);
+    try {
+      const res = await api.patch('/api/auth/change-password', {
+        currentPassword: passwords.current,
+        newPassword: passwords.next
+      });
+      triggerPopup?.(res.data?.message || 'Password updated successfully.', 'success');
       setPasswordOpen(false);
       setPasswords({ current: '', next: '', confirm: '' });
-      triggerPopup?.('Password updated. Use the new password the next time you sign in.', 'success');
-    }, 700);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to update password. Check your current password.';
+      triggerPopup?.(msg, 'error');
+    } finally {
+      setChanging(false);
+    }
   };
 
   return (

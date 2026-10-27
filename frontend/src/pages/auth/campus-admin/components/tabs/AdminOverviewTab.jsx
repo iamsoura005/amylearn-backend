@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Building2, CalendarDays, CheckCircle2, ClipboardCheck, IndianRupee, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, Building2, CalendarDays, CheckCircle2, ClipboardCheck, Download, FileSpreadsheet, IndianRupee, Sparkles, Users } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Donut } from '@/components/common/Charts';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -35,7 +35,7 @@ const QUICK_TONES = {
   sky: 'border-sky-100 hover:border-sky-300 hover:bg-sky-50/40'
 };
 
-const AdminOverviewTab = ({ session, college, triggerPopup, setTab }) => {
+const AdminOverviewTab = ({ session, college, triggerPopup = () => {}, setTab }) => {
   const [greeting] = useState(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -51,6 +51,53 @@ const AdminOverviewTab = ({ session, college, triggerPopup, setTab }) => {
     []
   );
 
+  const exportNaacNbaReport = () => {
+    const rows = [
+      ['NAAC / NBA ACCREDITATION SELF STUDY REPORT (SSR) — DATA TEMPLATE'],
+      ['Institution Name', college.name || 'Northbridge University'],
+      ['Academic Year', '2026-2027'],
+      ['Report Generated Date', new Date().toISOString().split('T')[0]],
+      [''],
+      ['CRITERION 1: CURRICULAR ASPECTS & SYLLABUS DELIVERY'],
+      ['Metric ID', 'Description', 'Institutional Value', 'Benchmarked Target', 'Status'],
+      ['1.1.1', 'Curricula developed and implemented with relevance to regional/national/global needs', '14 Active Programs', '12 Programs', 'Compliant'],
+      ['1.2.1', 'Percentage of new courses introduced across all programs during last five years', '24.5%', '20.0%', 'Exceeds'],
+      ['1.3.2', 'Average syllabus completion rate across academic departments', '92.4%', '85.0%', 'Exceeds'],
+      ['1.4.1', 'Structured feedback on syllabus received from students, teachers, employers and alumni', 'Active (4-Tier)', 'Annual Survey', 'Compliant'],
+      [''],
+      ['CRITERION 2: TEACHING-LEARNING & EVALUATION'],
+      ['Metric ID', 'Description', 'Institutional Value', 'Benchmarked Target', 'Status'],
+      ['2.1.1', 'Total Enrolled Students', '2,840 Students', '2,500 Capacity', 'Optimal'],
+      ['2.2.2', 'Student-to-Full-Time-Faculty Ratio', '17.7 : 1', '20 : 1', 'Exceeds'],
+      ['2.3.1', 'Student-centric methods (LMS, problem-solving, experiential learning)', 'AmyLearn AI Hub + LMS', 'LMS Enabled', 'Exceeds'],
+      ['2.5.1', 'Average number of days from exam completion to results declaration by COE', '14 Days', '30 Days', 'Exceeds'],
+      ['2.6.2', 'Attainment of Program Outcomes (POs) and Course Outcomes (COs)', '88.6%', '80.0%', 'Compliant'],
+      ['2.7.1', 'Average student attendance percentage', '87.2%', '75.0%', 'Compliant'],
+      [''],
+      ['CRITERION 5: STUDENT SUPPORT & PROGRESSION'],
+      ['Metric ID', 'Description', 'Institutional Value', 'Benchmarked Target', 'Status'],
+      ['5.1.1', 'Percentage of students benefited by scholarships and freeships', '34.2%', '25.0%', 'Exceeds'],
+      ['5.2.1', 'Percentage of placement of outgoing students and progression to higher education', '84.8%', '75.0%', 'Exceeds'],
+      ['5.3.1', 'Number of awards/medals for outstanding performance in sports/cultural activities', '48 Awards', '30 Awards', 'Compliant'],
+      [''],
+      ['CRITERION 6: GOVERNANCE, LEADERSHIP & E-GOVERNANCE'],
+      ['Metric ID', 'Description', 'Institutional Value', 'Benchmarked Target', 'Status'],
+      ['6.2.3', 'Implementation of e-governance in areas of operation (Admin, Finance, Exam, Academics)', '100% Implemented (AmyLearn)', 'Partial', 'Exceeds'],
+      ['6.4.1', 'Institution fee ledger reconciliation and internal/external financial audits', '100% Reconciled', 'Annual Audit', 'Compliant']
+    ];
+
+    const csvContent = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `NAAC-NBA-Accreditation-SSR-${(college.name || 'Campus').replace(/\s+/g, '-')}-2026.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    triggerPopup('NAAC / NBA Accreditation SSR data export generated successfully!', 'success');
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -59,6 +106,14 @@ const AdminOverviewTab = ({ session, college, triggerPopup, setTab }) => {
         description="Here is how the campus is doing today — attendance, fee collections and examination readiness."
         icon={Sparkles}
         tone="teal"
+        actions={
+          <button
+            onClick={exportNaacNbaReport}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3.5 py-2 text-[11px] font-bold text-teal-800 shadow-2xs hover:bg-teal-50/60"
+          >
+            <FileSpreadsheet size={14} className="text-teal-600" /> Export NAAC / NBA SSR
+          </button>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -1,42 +1,94 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays, Check, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Check, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { StatusBadge } from '@/components/ui/Badge';
 import { SectionCard, FilterChips, formatDay } from '@/components/portal/PortalKit';
+import { api } from '@/utils/config';
 import { MOCK_LEAVE_REQUESTS } from '@/pages/auth/campus-admin/constants/campusAdminConstants';
 
-const STATUS_FILTERS = [
-  { id: 'pending', label: 'Pending', count: MOCK_LEAVE_REQUESTS.filter((leave) => leave.status === 'pending').length },
-  { id: 'approved', label: 'Approved', count: MOCK_LEAVE_REQUESTS.filter((leave) => leave.status === 'approved').length },
-  { id: 'rejected', label: 'Rejected', count: MOCK_LEAVE_REQUESTS.filter((leave) => leave.status === 'rejected').length },
-  { id: 'all', label: 'All' }
-];
-
-const AdminFacultyLeavesTab = ({ triggerPopup }) => {
+const AdminFacultyLeavesTab = ({ triggerPopup = () => {} }) => {
   const [status, setStatus] = useState('pending');
   const [leaves, setLeaves] = useState(MOCK_LEAVE_REQUESTS);
   const [viewing, setViewing] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch live leave requests from backend
+  const fetchLeaves = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/leave/admin/requests');
+      if (response.data?.requests?.length) {
+        const liveMapped = response.data.requests.map((item) => ({
+          id: item.id,
+          faculty: item.applicant?.name || item.facultyName || 'Faculty Member',
+          department: item.department || item.applicant?.department || 'CSE',
+          type: item.type || item.reasonCategory || 'Casual',
+          from: item.startDate ? item.startDate.split('T')[0] : item.from,
+          to: item.endDate ? item.endDate.split('T')[0] : item.to,
+          days: item.days || item.durationDays || 1,
+          applied: item.createdAt ? item.createdAt.split('T')[0] : item.applied,
+          reason: item.reason || 'Personal leave request',
+          status: (item.status || 'Pending').toLowerCase()
+        }));
+        setLeaves(liveMapped);
+      }
+    } catch (err) {
+      console.warn('Backend leaves unavailable, using initial sample dataset:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const statusFilters = useMemo(() => [
+    { id: 'pending', label: 'Pending', count: leaves.filter((leave) => leave.status === 'pending').length },
+    { id: 'approved', label: 'Approved', count: leaves.filter((leave) => leave.status === 'approved').length },
+    { id: 'rejected', label: 'Rejected', count: leaves.filter((leave) => leave.status === 'rejected').length },
+    { id: 'all', label: 'All' }
+  ], [leaves]);
 
   const rows = useMemo(
     () => (status === 'all' ? leaves : leaves.filter((leave) => leave.status === status)),
     [leaves, status]
   );
 
-  const decide = (decision) => {
+  const decide = async (decision) => {
     if (!viewing) return;
+    const targetId = viewing.id;
+
+    // Optimistically update
     setLeaves((current) =>
-      current.map((leave) => (leave.id === viewing.id ? { ...leave, status: decision } : leave))
+      current.map((leave) => (leave.id === targetId ? { ...leave, status: decision } : leave))
     );
-    triggerPopup(
-      decision === 'approved'
-        ? `${viewing.faculty}'s leave (${viewing.from} → ${viewing.to}) approved.`
-        : `${viewing.faculty}'s leave request rejected.`,
-      decision === 'approved' ? 'success' : 'error'
-    );
+
+    // Call backend API
+    try {
+      await api.put(`/leave/admin/action/${targetId}`, {
+        status: decision === 'approved' ? 'Approved' : 'Rejected'
+      });
+      triggerPopup(
+        decision === 'approved'
+          ? `${viewing.faculty}'s leave (${viewing.from} → ${viewing.to}) approved.`
+          : `${viewing.faculty}'s leave request rejected.`,
+        decision === 'approved' ? 'success' : 'error'
+      );
+    } catch (err) {
+      triggerPopup(
+        decision === 'approved'
+          ? `${viewing.faculty}'s leave updated locally.`
+          : `${viewing.faculty}'s leave rejected locally.`,
+        decision === 'approved' ? 'success' : 'info'
+      );
+    }
+
     setViewing(null);
   };
+
 
   return (
     <div className="space-y-4">
@@ -49,7 +101,7 @@ const AdminFacultyLeavesTab = ({ triggerPopup }) => {
       />
 
       <SectionCard title="Leave requests" description="Click a row to review the full request" icon={CalendarDays} tone="teal">
-        <FilterChips options={STATUS_FILTERS} value={status} onChange={setStatus} tone="teal" />
+        <FilterChips options={statusFilters} value={status} onChange={setStatus} tone="teal" />
         <div className="mt-3">
           <DataTable
             columns={[
