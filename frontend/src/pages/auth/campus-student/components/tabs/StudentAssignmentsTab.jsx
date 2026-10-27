@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   CalendarClock,
   CheckCircle2,
@@ -19,6 +19,7 @@ import { Modal } from '@/components/ui/Modal';
 import { FileDropzone } from '@/components/common/FileDropzone';
 import { SectionCard, SoftStat, dueLabel, daysUntil, formatDay } from './shared/StudentTabKit';
 import { MOCK_ASSIGNMENTS } from '@/pages/auth/campus-student/constants/campusStudentConstants';
+import api from '@/utils/config';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -35,6 +36,28 @@ export const StudentAssignmentsTab = ({ triggerPopup }) => {
   const [files, setFiles] = useState([]);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadAssignments = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/api/assignments');
+        if (active && res.data?.assignments?.length) {
+          setItems(res.data.assignments);
+        }
+      } catch (err) {
+        // Keeps fallback
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadAssignments();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase();
@@ -48,20 +71,36 @@ export const StudentAssignmentsTab = ({ triggerPopup }) => {
   const graded = items.filter((item) => item.status === 'Graded');
   const average = graded.length ? Math.round(graded.reduce((sum, item) => sum + (item.marks / item.total) * 100, 0) / graded.length) : 0;
 
-  const submit = () => {
+  const submit = async () => {
     if (!files.length) {
       triggerPopup?.('Attach at least one file before submitting this assignment.', 'warning');
       return;
     }
     setSubmitting(true);
-    window.setTimeout(() => {
-      setItems((prev) => prev.map((item) => (item.id === selected.id ? { ...item, status: 'Submitted' } : item)));
+    try {
+      const fileNames = files.map((f) => (typeof f === 'string' ? f : f.name || 'assignment_submission.pdf'));
+      const res = await api.post(`/api/assignments/${selected.id}/submit`, {
+        files: fileNames,
+        note
+      });
+      if (res.data?.success) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === selected.id
+              ? { ...item, status: 'Submitted', files: fileNames, note, submittedAt: new Date().toISOString() }
+              : item
+          )
+        );
+        triggerPopup?.(res.data.message || `“${selected.title}” submitted successfully.`, 'success');
+        setSelected(null);
+        setFiles([]);
+        setNote('');
+      }
+    } catch (err) {
+      triggerPopup?.(err?.response?.data?.message || 'Failed to submit assignment. Please try again.', 'error');
+    } finally {
       setSubmitting(false);
-      setSelected(null);
-      setFiles([]);
-      setNote('');
-      triggerPopup?.(`“${selected.title}” submitted successfully. Your faculty will review it shortly.`, 'success');
-    }, 650);
+    }
   };
 
   return (

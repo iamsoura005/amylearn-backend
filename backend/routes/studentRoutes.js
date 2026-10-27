@@ -17,5 +17,6 @@ router.post('/sem-feedback', student.postSemFeedback);
 router.get('/project-info', student.getProjectInfo);
 router.post('/project-info', student.saveProjectInfo);
 router.get('/payment-history', student.paymentHistory);
+router.post('/pay-fee', student.payFee);
 
 module.exports = router;

@@ -15,6 +15,8 @@ router.post('/admin-roles', admin.assignAdminRoles);
 router.get('/requests', admin.listRequests);
 router.post('/requests/:id/:action', admin.actionRequest);
 router.get('/users/:role', admin.listUsersByRole);
+router.post('/users', admin.createSingleUser);
+router.post('/users/bulk-import', admin.bulkImportUsers);
 router.patch('/users/:id/status', admin.updateUserStatus);
 router.delete('/users/:id', admin.removeUser);
 router.get('/fees', admin.listFees);

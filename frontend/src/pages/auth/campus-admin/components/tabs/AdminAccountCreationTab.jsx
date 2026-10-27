@@ -8,6 +8,7 @@ import {
   MOCK_DEPARTMENTS,
   MOCK_ACCOUNT_TEMPLATES
 } from '@/pages/auth/campus-admin/constants/campusAdminConstants';
+import api from '@/utils/config';
 
 const KIND_FILTERS = [
   { id: 'single', label: 'Single account' },
@@ -33,18 +34,31 @@ const AdminAccountCreationTab = ({ triggerPopup }) => {
 
   const set = (key) => (event) => setForm((value) => ({ ...value, [key]: event.target.value }));
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!form.name.trim() || !form.identifier.trim() || !form.email.trim() || !form.department) {
       triggerPopup('Please fill all required fields before creating the account.', 'error');
       return;
     }
     setSubmitting(true);
-    window.setTimeout(() => {
-      setSubmitting(false);
-      triggerPopup(`Account for ${form.name} created. Welcome email sent to ${form.email}.`, 'success');
+    try {
+      const res = await api.post('/api/college-admin/users', {
+        name: form.name,
+        identifier: form.identifier,
+        email: form.email,
+        department: form.department,
+        role: form.kind,
+        password: form.password || 'Welcome@123',
+        designation: form.designation,
+        semester: form.semester
+      });
+      triggerPopup(res.data?.message || `Account for ${form.name} created successfully.`, 'success');
       setForm(EMPTY_FORM);
-    }, 600);
+    } catch (err) {
+      triggerPopup(err?.response?.data?.message || 'Failed to create account.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const importFile = () => {
@@ -52,8 +66,25 @@ const AdminAccountCreationTab = ({ triggerPopup }) => {
       triggerPopup('Attach a CSV file first.', 'error');
       return;
     }
-    triggerPopup(`${files[0].name} queued for import. Rows will be validated against the template.`, 'success');
-    setFiles([]);
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      setSubmitting(true);
+      try {
+        const res = await api.post('/api/college-admin/users/bulk-import', { csv: text });
+        triggerPopup(res.data?.message || `Imported users from ${file.name} successfully.`, 'success');
+        setFiles([]);
+      } catch (err) {
+        triggerPopup(err?.response?.data?.message || 'Failed to import CSV.', 'error');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+    reader.onerror = () => {
+      triggerPopup('Could not read the selected CSV file.', 'error');
+    };
+    reader.readAsText(file);
   };
 
   return (

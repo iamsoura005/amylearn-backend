@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   ArrowDownToLine,
   CalendarDays,
@@ -13,27 +13,51 @@ import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { SearchInput } from '@/components/ui/Primitives';
 import { SectionCard, SoftStat, formatDay, inr } from './shared/StudentTabKit';
 import { MOCK_PAYMENTS } from '@/pages/auth/campus-student/constants/campusStudentConstants';
+import api from '@/utils/config';
 
 const MODES = ['All', 'UPI', 'Net banking', 'Card', 'Wallet'];
 
 export const StudentPaymentHistoryTab = ({ setTab, triggerPopup }) => {
+  const [payments, setPayments] = useState(MOCK_PAYMENTS);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState('All');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchPayments = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/api/student/payment-history');
+        if (active && res.data?.payments?.length) {
+          setPayments(res.data.payments);
+        }
+      } catch {
+        // Keeps fallback
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchPayments();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase();
-    return MOCK_PAYMENTS.filter((payment) => {
+    return payments.filter((payment) => {
       const matchesQuery =
         !value ||
-        payment.description.toLowerCase().includes(value) ||
-        payment.reference.toLowerCase().includes(value);
-      const matchesMode = mode === 'All' || payment.mode.toLowerCase().includes(mode.toLowerCase());
+        (payment.description && payment.description.toLowerCase().includes(value)) ||
+        (payment.reference && payment.reference.toLowerCase().includes(value));
+      const matchesMode = mode === 'All' || (payment.mode && payment.mode.toLowerCase().includes(mode.toLowerCase()));
       return matchesQuery && matchesMode;
     });
-  }, [query, mode]);
+  }, [payments, query, mode]);
 
-  const total = MOCK_PAYMENTS.reduce((sum, payment) => sum + payment.amount, 0);
-  const latest = MOCK_PAYMENTS[0];
+  const total = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const latest = payments[0] || { amount: 0, date: new Date().toISOString() };
 
   const exportCsv = () => {
     const rows = [
@@ -48,6 +72,62 @@ export const StudentPaymentHistoryTab = ({ setTab, triggerPopup }) => {
     anchor.click();
     URL.revokeObjectURL(url);
     triggerPopup?.('Payment history exported as CSV.', 'success');
+  };
+
+  const downloadReceipt = (payment) => {
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Fee Receipt - ${payment.reference}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+          .header { border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+          .title { font-size: 24px; font-weight: bold; color: #0f172a; }
+          .badge { background: #dcfce7; color: #15803d; padding: 4px 12px; border-radius: 999px; font-weight: bold; font-size: 12px; }
+          .details { margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; }
+          .amount-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 30px; }
+          .amount { font-size: 32px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+          .footer { font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">AmyLearn Digital Fee Receipt</div>
+            <div style="font-size: 13px; color: #64748b;">Official Institutional Fee Voucher</div>
+          </div>
+          <div class="badge">STATUS: ${String(payment.status || 'PAID').toUpperCase()}</div>
+        </div>
+        <div class="details">
+          <div><strong>Reference No:</strong> ${payment.reference}</div>
+          <div><strong>Date:</strong> ${new Date(payment.date || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div><strong>Payment Mode:</strong> ${payment.mode || 'Online'}</div>
+          <div><strong>Description:</strong> ${payment.description}</div>
+        </div>
+        <div class="amount-box">
+          <div style="font-size: 13px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Amount Paid</div>
+          <div class="amount">₹${Number(payment.amount).toLocaleString('en-IN')}</div>
+        </div>
+        <div class="footer">
+          This is an electronically generated receipt verified by AmyLearn Institutional ERP. No physical signature is required.
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([receiptHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+      triggerPopup?.(`Receipt for ${payment.reference} opened for printing.`, 'success');
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt-${payment.reference}.html`;
+      a.click();
+      triggerPopup?.(`Receipt for ${payment.reference} downloaded.`, 'success');
+    }
   };
 
   return (
@@ -129,7 +209,7 @@ export const StudentPaymentHistoryTab = ({ setTab, triggerPopup }) => {
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <button
-                      onClick={() => triggerPopup?.(`Receipt for ${payment.reference} downloaded.`, 'success')}
+                      onClick={() => downloadReceipt(payment)}
                       className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8.5px] font-bold text-slate-500 hover:border-emerald-300 hover:text-emerald-700"
                     >
                       <Download size={10} /> Receipt

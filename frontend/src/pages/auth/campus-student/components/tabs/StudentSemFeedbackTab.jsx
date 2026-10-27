@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   BadgeCheck,
   BookOpen,
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Primitives';
 import { SectionCard, SoftStat } from './shared/StudentTabKit';
 import { MOCK_COURSES, MOCK_FEEDBACK_QUESTIONS } from '@/pages/auth/campus-student/constants/campusStudentConstants';
+import api from '@/utils/config';
 
 const SCALE = [
   { value: 1, label: 'Strongly disagree' },
@@ -31,6 +32,33 @@ export const StudentSemFeedbackTab = ({ triggerPopup }) => {
   const [submitted, setSubmitted] = useState({});
   const [sending, setSending] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    const loadFeedback = async () => {
+      try {
+        const res = await api.get('/api/student/sem-feedback');
+        if (active && res.data?.feedback) {
+          const map = {};
+          (Array.isArray(res.data.feedback) ? res.data.feedback : [res.data.feedback]).forEach((f) => {
+            if (f && f.responses) {
+              f.responses.forEach((r) => {
+                if (r.subjectId) map[r.subjectId] = true;
+              });
+            }
+            if (f && f.courseId) map[f.courseId] = true;
+          });
+          setSubmitted((prev) => ({ ...prev, ...map }));
+        }
+      } catch {
+        // Fallback
+      }
+    };
+    loadFeedback();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const course = MOCK_COURSES.find((item) => item.id === courseId);
   const answered = Object.keys(answers).length;
   const progress = Math.round((answered / MOCK_FEEDBACK_QUESTIONS.length) * 100);
@@ -43,19 +71,38 @@ export const StudentSemFeedbackTab = ({ triggerPopup }) => {
     return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
   }, [answers]);
 
-  const submit = () => {
+  const submit = async () => {
     if (answered < MOCK_FEEDBACK_QUESTIONS.length) {
       triggerPopup?.('Please answer every statement before submitting your feedback.', 'warning');
       return;
     }
     setSending(true);
-    window.setTimeout(() => {
+    try {
+      const avg = Number(average) || 4;
+      await api.post('/api/student/sem-feedback', {
+        responses: [
+          {
+            subjectId: courseId,
+            rating: Math.round(avg),
+            comments: comment || 'Course feedback submitted.'
+          }
+        ],
+        extra: {
+          courseId,
+          courseName: course?.name,
+          answers,
+          comment
+        }
+      });
       setSubmitted((prev) => ({ ...prev, [courseId]: true }));
-      setSending(false);
       setAnswers({});
       setComment('');
-      triggerPopup?.('Anonymous feedback submitted. Thank you for helping improve the semester.', 'success');
-    }, 700);
+      triggerPopup?.('Feedback submitted and recorded in institutional ledger. Thank you!', 'success');
+    } catch (err) {
+      triggerPopup?.(err?.response?.data?.message || 'Failed to submit feedback.', 'error');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (

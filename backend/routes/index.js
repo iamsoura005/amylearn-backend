@@ -20,6 +20,7 @@ router.use('/api/coe', require('./coeRoutes'));
 router.use('/api/leave', require('./leaveRoutes'));
 router.use('/api/library', require('./libraryRoutes'));
 router.use('/api/attendance', require('./attendanceRoutes'));
+router.use('/api/assignments', require('./assignmentRoutes'));
 
 // Feature flags + dashboard menu (mounted at /api and at / per the endpoint registry)
 router.use('/api', require('./systemRoutes'));

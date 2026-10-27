@@ -437,6 +437,202 @@ const listMarks = asyncHandler(async (req, res) => {
   return res.json({ success: true, count: rows.length, marks: rows });
 });
 
+// ---------------------------------------------------------------------------
+// Account Creation & Bulk Import
+// ---------------------------------------------------------------------------
+const bcrypt = require('bcryptjs');
+const { roleConfigFor } = require('../config/systemRoles');
+
+async function buildAmylearnIdForAdmin(role, tenant, preferred) {
+  if (preferred && String(preferred).trim()) {
+    const exists = await prisma.user.findFirst({ where: { amylearnId: String(preferred).trim() } });
+    if (!exists) return String(preferred).trim();
+  }
+  const prefix = tenant && tenant.collegeCode ? `${tenant.collegeCode}-` : '';
+  const rolePrefix = (roleConfigFor(role) && roleConfigFor(role).idPrefix) || 'USR';
+  const seq = await nextSequence(`amylearn_id:${role}`, 1);
+  return `${prefix}${rolePrefix}-${String(seq).padStart(4, '0')}`;
+}
+
+const createSingleUser = asyncHandler(async (req, res) => {
+  const tenant = tenantOf(req);
+  const { name, email, role, department, identifier, password, designation } = req.body;
+  if (!name || !email || !department) {
+    throw httpError(400, 'name, email, and department are required.');
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) {
+    throw httpError(409, `An account with email ${normalizedEmail} already exists.`);
+  }
+
+  const canonicalRole = normalizeRole(role) || 'student';
+  const passwordHash = await bcrypt.hash(password || 'Welcome@123', 10);
+  const amylearnId = await buildAmylearnIdForAdmin(canonicalRole, tenant, identifier);
+
+  const user = await prisma.user.create({
+    data: {
+      email: normalizedEmail,
+      name: String(name).trim(),
+      password: passwordHash,
+      role: canonicalRole,
+      amylearnId,
+      department: String(department).trim(),
+      college: tenant.name,
+      emailVerified: true
+    }
+  });
+
+  await prisma.membership.create({
+    data: {
+      userId: user.id,
+      tenantId: tenant.id,
+      role: canonicalRole,
+      status: 'active'
+    }
+  });
+
+  if (canonicalRole === 'student') {
+    await prisma.studentProfile.create({
+      data: {
+        userId: user.id,
+        tenantId: tenant.id,
+        rollNumber: identifier ? String(identifier).trim() : amylearnId
+      }
+    });
+  } else if (canonicalRole === 'faculty') {
+    await prisma.facultyProfile.create({
+      data: {
+        userId: user.id,
+        tenantId: tenant.id,
+        employeeId: identifier ? String(identifier).trim() : amylearnId,
+        designation: designation || 'Assistant Professor'
+      }
+    });
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: `Account created successfully for ${user.name}.`,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: canonicalRole,
+      amylearnId: user.amylearnId,
+      department: user.department
+    }
+  });
+});
+
+const bulkImportUsers = asyncHandler(async (req, res) => {
+  const tenant = tenantOf(req);
+  let rows = req.body.users || req.body.records || req.body.rows;
+
+  if (!Array.isArray(rows) && typeof req.body.csv === 'string') {
+    const lines = req.body.csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length <= 1) {
+      throw httpError(400, 'CSV must contain a header row and at least one user record.');
+    }
+    const headers = lines[0].split(/[,;\t]/).map((h) => h.trim().toLowerCase());
+    rows = lines.slice(1).map((line) => {
+      const parts = line.split(/[,;\t]/).map((p) => p.trim());
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = parts[index] || '';
+      });
+      return row;
+    });
+  }
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw httpError(400, 'Provide a user list or CSV text to import.');
+  }
+
+  const created = [];
+  const errors = [];
+  const defaultHash = await bcrypt.hash('Welcome@123', 10);
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const name = row.name || row.fullname || row['full name'];
+    const email = row.email || row['email address'];
+    const role = normalizeRole(row.role || row.type) || 'student';
+    const dept = row.department || row.dept || 'General';
+    const identifier = row.rollnumber || row.employeeid || row.id || row.identifier;
+
+    if (!name || !email) {
+      errors.push({ row: i + 1, error: 'Missing name or email' });
+      continue;
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      errors.push({ row: i + 1, email: normalizedEmail, error: 'Account with email already exists' });
+      continue;
+    }
+
+    const amylearnId = await buildAmylearnIdForAdmin(role, tenant, identifier);
+    try {
+      const user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: String(name).trim(),
+          password: defaultHash,
+          role,
+          amylearnId,
+          department: String(dept).trim(),
+          college: tenant.name,
+          emailVerified: true
+        }
+      });
+
+      await prisma.membership.create({
+        data: {
+          userId: user.id,
+          tenantId: tenant.id,
+          role,
+          status: 'active'
+        }
+      });
+
+      if (role === 'student') {
+        await prisma.studentProfile.create({
+          data: {
+            userId: user.id,
+            tenantId: tenant.id,
+            rollNumber: identifier ? String(identifier).trim() : amylearnId
+          }
+        });
+      } else if (role === 'faculty') {
+        await prisma.facultyProfile.create({
+          data: {
+            userId: user.id,
+            tenantId: tenant.id,
+            employeeId: identifier ? String(identifier).trim() : amylearnId,
+            designation: row.designation || 'Assistant Professor'
+          }
+        });
+      }
+
+      created.push({ id: user.id, name: user.name, email: user.email, role, amylearnId });
+    } catch (err) {
+      errors.push({ row: i + 1, email: normalizedEmail, error: err.message });
+    }
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: `Imported ${created.length} users successfully.${errors.length ? ` ${errors.length} rows skipped.` : ''}`,
+    createdCount: created.length,
+    errorCount: errors.length,
+    created,
+    errors
+  });
+});
+
 module.exports = {
   getSettings,
   updateSettings,
@@ -450,5 +646,7 @@ module.exports = {
   updateUserStatus,
   removeUser,
   listFees,
-  listMarks
+  listMarks,
+  createSingleUser,
+  bulkImportUsers
 };
