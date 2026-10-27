@@ -306,16 +306,24 @@
     -webkit-overflow-scrolling: touch;
   }
   .mermaid svg {
-    min-width: 460px;
     max-width: 100%;
     height: auto;
     display: block;
     margin: 0 auto;
   }
-  @media (max-width: 640px) {
-    .mermaid svg {
-      min-width: 360px;
-    }
+  .mermaid svg text,
+  .mermaid svg .nodeLabel,
+  .mermaid svg .labelText {
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    fill: #0a1f44 !important;
+    color: #0a1f44 !important;
+  }
+  .mermaid svg rect,
+  .mermaid svg polygon,
+  .mermaid svg circle {
+    stroke-width: 1.5px !important;
   }
 
   .portal-sidebar-scroll {

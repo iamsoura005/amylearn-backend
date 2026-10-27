@@ -1,24 +1,36 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import DOMPurify from 'dompurify';
-import { ChevronDown, ChevronUp, Code, Layers, Sparkles } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Code, Copy, Layers, RotateCcw, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
 
 let initialized = false;
 const ensureMermaid = () => {
   if (initialized) return;
   mermaid.initialize({
     startOnLoad: false,
-    securityLevel: 'strict',
+    securityLevel: 'loose',
+    htmlLabels: false, // Forces pure SVG <text> and <tspan> so node labels never get stripped
+    flowchart: {
+      htmlLabels: false,
+      useMaxWidth: false,
+      curve: 'basis',
+      nodeSpacing: 40,
+      rankSpacing: 45
+    },
     theme: 'base',
     fontFamily: 'Arial, Helvetica, sans-serif',
     themeVariables: {
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      fontSize: '14px',
       primaryColor: '#EEF4FF',
       primaryTextColor: '#0A1F44',
-      primaryBorderColor: '#8DB4FF',
-      lineColor: '#64748B',
-      secondaryColor: '#F4F0FF',
+      primaryBorderColor: '#3B82F6',
+      lineColor: '#475569',
+      secondaryColor: '#F5F3FF',
       tertiaryColor: '#ECFDF5',
-      fontSize: '13px'
+      mainBkg: '#EEF4FF',
+      nodeBorder: '#3B82F6',
+      textColor: '#0A1F44'
     }
   });
   initialized = true;
@@ -114,7 +126,7 @@ const FallbackConceptTree = ({ rawCode, onShowCode, showCode }) => {
 
       {connections.length > 0 ? (
         <div className="space-y-2">
-          {connections.slice(0, 12).map((conn, idx) => (
+          {connections.slice(0, 14).map((conn, idx) => (
             <div key={idx} className="flex flex-wrap items-center gap-2 text-xs">
               <span className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 font-semibold text-indigo-900 shadow-2xs">
                 {conn.from}
@@ -145,6 +157,8 @@ export const MermaidDiagram = ({ code = '', className = '' }) => {
   const [svg, setSvg] = useState('');
   const [error, setError] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [copied, setCopied] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -157,7 +171,29 @@ export const MermaidDiagram = ({ code = '', className = '' }) => {
       .render(id, source)
       .then(({ svg: output }) => {
         if (!mounted.current) return;
-        setSvg(DOMPurify.sanitize(output, { USE_PROFILES: { svg: true, svgFilters: true } }));
+        // Sanitize with full support for SVG tags, text, and optional foreignObject
+        const sanitized = DOMPurify.sanitize(output, {
+          USE_PROFILES: { svg: true, svgFilters: true, html: true },
+          ADD_TAGS: ['foreignObject', 'div', 'span', 'p', 'style', 'text', 'tspan'],
+          ADD_ATTR: [
+            'dominant-baseline',
+            'text-anchor',
+            'transform',
+            'style',
+            'viewBox',
+            'width',
+            'height',
+            'x',
+            'y',
+            'class',
+            'id',
+            'fill',
+            'stroke',
+            'stroke-width',
+            'd'
+          ]
+        });
+        setSvg(sanitized);
         setError(false);
       })
       .catch((err) => {
@@ -171,6 +207,12 @@ export const MermaidDiagram = ({ code = '', className = '' }) => {
       if (stale) stale.remove();
     };
   }, [code, id]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (error) {
     return (
@@ -195,6 +237,7 @@ export const MermaidDiagram = ({ code = '', className = '' }) => {
 
   return (
     <div className={`rounded-2xl border border-indigo-100/90 bg-white p-3.5 shadow-xs ${className}`}>
+      {/* Diagram Header with Controls */}
       <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
         <div className="flex items-center gap-1.5 text-slate-800">
           <span className="grid h-5 w-5 place-items-center rounded bg-indigo-50 text-indigo-600">
@@ -202,16 +245,73 @@ export const MermaidDiagram = ({ code = '', className = '' }) => {
           </span>
           <span className="text-[11px] font-bold">Mind Map & Concept Diagram</span>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCode((prev) => !prev)}
-          className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-indigo-600 transition-colors"
-        >
-          <Code size={11} /> {showCode ? 'Hide syntax' : 'Inspect syntax'}
-        </button>
+
+        <div className="flex items-center gap-1.5">
+          {/* Zoom controls */}
+          <div className="flex items-center rounded-lg border border-slate-200/80 bg-slate-50 p-0.5 text-slate-600">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.2).toFixed(1))))}
+              title="Zoom out"
+              className="rounded p-1 hover:bg-white hover:text-slate-900 transition-colors"
+            >
+              <ZoomOut size={12} />
+            </button>
+            <span className="px-1.5 text-[9px] font-bold tabular-nums text-slate-500">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(2.0, Number((z + 0.2).toFixed(1))))}
+              title="Zoom in"
+              className="rounded p-1 hover:bg-white hover:text-slate-900 transition-colors"
+            >
+              <ZoomIn size={12} />
+            </button>
+            {zoom !== 1 && (
+              <button
+                type="button"
+                onClick={() => setZoom(1)}
+                title="Reset zoom"
+                className="rounded p-1 text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <RotateCcw size={11} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="Copy diagram code"
+            className="flex items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-white hover:text-indigo-600 transition-colors"
+          >
+            {copied ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCode((prev) => !prev)}
+            className="flex items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-white hover:text-indigo-600 transition-colors"
+          >
+            <Code size={11} />
+            <span>{showCode ? 'Hide' : 'Syntax'}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="mermaid overflow-x-auto py-1" dangerouslySetInnerHTML={{ __html: svg }} />
+      {/* SVG Container with Zoom & Scroll */}
+      <div className="mermaid overflow-x-auto py-2">
+        <div
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top center',
+            transition: 'transform 0.15s ease'
+          }}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      </div>
 
       {showCode && (
         <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-3 text-[11px] text-slate-100">
