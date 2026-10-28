@@ -67,7 +67,7 @@ export const sanitizeMermaidSource = (raw = '') => {
   text = text.split('\n').filter((l) => !/^mermaid\s*$/i.test(l.trim())).join('\n').trim();
 
   // Convert wide top-down graphs to Left-to-Right (LR) so mind maps never flatten into thin bar-graphs
-  text = text.replace(/^\s*(?:graph|flowchart)\s+(?:TD|TB)\b/i, 'graph LR');
+  text = text.replace(/(?:^|\n)\s*(?:graph|flowchart)\s+(?:TD|TB)\b/gi, (match) => match.startsWith('\n') ? '\ngraph LR' : 'graph LR');
 
   // Fix em-dashes and en-dashes inside connection arrows
   text = text.replace(/[\u2014\u2013]{2,}>/g, '-->');
@@ -79,7 +79,7 @@ export const sanitizeMermaidSource = (raw = '') => {
   text = text.replace(/^\s*graph\s+[A-Z]{2}\s+(graph|flowchart|mindmap)/i, '$1');
 
   // Ensure diagram type header exists; default to graph LR for optimal readability
-  const isKnownType = /^\s*(graph|flowchart|mindmap|classDiagram|sequenceDiagram|erDiagram|gantt|pie|gitGraph|stateDiagram)\b/i.test(text);
+  const isKnownType = /^\s*(graph|flowchart|mindmap|classDiagram|sequenceDiagram|erDiagram|gantt|pie|gitGraph|stateDiagram)\b/im.test(text);
   if (!isKnownType) {
     text = `graph LR\n${text}`;
   }
@@ -190,30 +190,26 @@ export const MermaidDiagram = ({ code = '', className = '' }) => {
       .then(({ svg: output }) => {
         if (!mounted.current) return;
         // Sanitize with full support for SVG tags, text, styling
-        const sanitized = DOMPurify.sanitize(output, {
-          USE_PROFILES: { svg: true, svgFilters: true, html: true },
-          ADD_TAGS: ['foreignObject', 'div', 'span', 'p', 'style', 'text', 'tspan', 'b', 'strong', 'i', 'em', 'br'],
-          ADD_ATTR: [
-            'dominant-baseline',
-            'text-anchor',
-            'transform',
-            'style',
-            'viewBox',
-            'width',
-            'height',
-            'x',
-            'y',
-            'class',
-            'id',
-            'fill',
-            'stroke',
-            'stroke-width',
-            'd',
-            'xmlns',
-            'preserveAspectRatio'
-          ]
-        });
-        setSvg(sanitized);
+        let sanitized = '';
+        try {
+          sanitized = DOMPurify.sanitize(output, {
+            USE_PROFILES: { svg: true, svgFilters: true, html: true },
+            ADD_TAGS: [
+              'foreignObject', 'div', 'span', 'p', 'style', 'text', 'tspan',
+              'b', 'strong', 'i', 'em', 'br', 'marker', 'defs', 'line',
+              'polygon', 'polyline', 'rect', 'circle', 'path', 'g'
+            ],
+            ADD_ATTR: [
+              'dominant-baseline', 'text-anchor', 'transform', 'style',
+              'viewBox', 'width', 'height', 'x', 'y', 'class', 'id',
+              'fill', 'stroke', 'stroke-width', 'd', 'xmlns', 'preserveAspectRatio',
+              'marker-end', 'marker-start', 'refX', 'refY', 'markerWidth', 'markerHeight', 'orient'
+            ]
+          });
+        } catch {
+          sanitized = output;
+        }
+        setSvg(sanitized && sanitized.includes('<svg') ? sanitized : output);
         setError(false);
       })
       .catch((err) => {

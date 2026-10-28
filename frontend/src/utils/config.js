@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+export const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? 'https://amylearn-api.onrender.com'
+    : 'http://localhost:4000');
 
 export const COLLEGE_CONFIG = {
   logoUrl: '/webdata/clg-logo/AmyLearn_demo.png',

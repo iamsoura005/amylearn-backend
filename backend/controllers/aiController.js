@@ -21,7 +21,7 @@ const FORMAT_INSTRUCTIONS =
   '\n2. Whenever presenting comparisons, differences, multi-feature breakdowns, pros/cons, classifications, or metrics, ALWAYS format them as a clean GitHub-flavored Markdown table with pipe syntax (`| Col 1 | Col 2 |` and `|---|---|`).' +
   '\n3. NEVER use em-dashes (—) or hyphen lines as fake tables or fake diagrams. Use standard Markdown tables with pipes, or clean bullet points.' +
   '\n4. Ensure tables have concise headers and well-aligned cells.' +
-  '\n5. If asked for a mind map, concept map, flowchart, or visual diagram, ALWAYS provide a valid Mermaid diagram using ```mermaid graph TD ... ``` with double-quoted node labels like A["Core Concept"] --> B["Subtopic (Details)"]. NEVER draw ASCII tree lines (├──, │, └──) or em-dash hierarchies.' +
+  '\n5. If asked for a mind map, concept map, flowchart, or visual diagram, ALWAYS provide a valid Mermaid diagram using ```mermaid graph LR ... ``` with double-quoted node labels like A["Core Concept"] --> B["Subtopic (Details)"]. NEVER draw ASCII tree lines (├──, │, └──) or em-dash hierarchies.' +
   '\n6. Do not output raw internal thinking, reasoning tokens, or <think> blocks.';
 
 const SYSTEM_PROMPTS = {

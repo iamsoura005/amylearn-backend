@@ -32,8 +32,8 @@ function corsOrigin(origin, callback) {
 
   if (allowed.includes(origin)) return callback(null, true);
 
-  // Vercel preview deployments
-  if (/^https:\/\/amylearn(?:-frontend)?-[a-z0-9-]+\.vercel\.app$/.test(origin)) {
+  // Vercel deployments (production, branch, and preview)
+  if (/^https:\/\/[a-z0-9.-]+\.vercel\.app$/.test(origin)) {
     return callback(null, true);
   }
   // Any localhost / loopback port
