@@ -89,24 +89,43 @@ export const StudentProfileTab = ({ session, college, triggerPopup }) => {
         actions={<Badge tone="emerald" dot>Verified student</Badge>}
       />
 
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
-        <div className="h-20 bg-gradient-to-r from-[#14112e] via-[#2b2666] to-[#4338CA]" />
-        <div className="px-4 pb-4 sm:px-5">
-          <div className="-mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-3">
-              <div className="rounded-full border-4 border-white shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        {/* Banner with subtle ambient gradient */}
+        <div className="relative h-24 sm:h-28 bg-gradient-to-r from-[#14112e] via-[#2b2666] to-[#4338CA]">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+        </div>
+
+        {/* Profile info block situated cleanly on white surface */}
+        <div className="px-5 pb-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              {/* Avatar circle overlapping the banner boundary */}
+              <div className="-mt-11 sm:-mt-12 shrink-0 self-start sm:self-auto rounded-full border-4 border-white bg-white shadow-md ring-1 ring-slate-200/70">
                 <Avatar name={student.name || 'Aarav Sharma'} size="xl" tone="indigo" />
               </div>
-              <div className="pb-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <h2 className="text-xl font-extrabold leading-tight text-deepNavy font-jost">{student.name || 'Rohan Iyer'}</h2>
-                  <BadgeCheck size={16} className="text-blue-600" />
+
+              {/* Student identity details */}
+              <div className="pt-0.5 sm:pt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-deepNavy font-jost tracking-tight leading-snug">
+                    {student.name || 'Aarav Sharma'}
+                  </h2>
+                  <BadgeCheck size={18} className="text-blue-600 shrink-0" />
                 </div>
-                <p className="text-[10px] font-bold text-brandBlue">{student.rollNumber || 'NBR2024CS042'}</p>
-                <p className="text-[9px] font-semibold text-slate-500">{student.program || 'B.Tech · Computer Science & Engineering'}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-xs font-bold text-brandBlue">
+                    {student.rollNumber || 'NBR2024CS042'}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    {student.program || 'B.Tech · Computer Science & Engineering'}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 pb-1">
+
+            {/* Badges on right side */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
               <Badge tone="indigo">Semester {student.semester || 5}</Badge>
               <Badge tone="slate">{college?.collegeCode || 'NBR'} · {college?.name || 'Northbridge University'}</Badge>
             </div>
