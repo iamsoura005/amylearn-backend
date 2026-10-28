@@ -83,7 +83,7 @@ For an isothermal reversible process, W = nRT ln(V₂/V₁). Watch the sign conv
 ];
 
 const MINDMAPS = {
-  default: `graph TD
+  default: `graph LR
   A["Study topic"] --> B["Core concepts"]
   A --> C["Definitions"]
   A --> D["Worked examples"]
@@ -93,7 +93,7 @@ const MINDMAPS = {
   C --> C2["Term 2"]
   D --> D1["Practice set"]
   D --> D2["Common mistakes"]`,
-  photosynthesis: `graph TD
+  photosynthesis: `graph LR
   A["Photosynthesis"] --> B["Light reactions"]
   A --> C["Calvin cycle"]
   B --> B1["Water splitting"]
@@ -102,7 +102,7 @@ const MINDMAPS = {
   C --> C1["CO₂ fixation"]
   C --> C2["RuBisCO"]
   C --> C3["Glucose"]`,
-  database: `graph TD
+  database: `graph LR
   A["Normalisation"] --> B["1NF"]
   A --> C["2NF"]
   A --> D["3NF"]
@@ -111,7 +111,7 @@ const MINDMAPS = {
   C --> C1["No partial dependency"]
   D --> D1["No transitive dependency"]
   E --> E1["Candidate key determinants"]`,
-  deadlock: `graph TD
+  deadlock: `graph LR
   A["Operating System Deadlocks"] --> B["4 Necessary Conditions"]
   A --> C["Handling Strategies"]
   A --> D["Detection & Recovery"]
@@ -124,7 +124,7 @@ const MINDMAPS = {
   C --> C3["Ostrich Algorithm"]
   D --> D1["Resource Allocation Graph"]
   D --> D2["Process Termination"]`,
-  networking: `graph TD
+  networking: `graph LR
   A["TCP Congestion Control"] --> B["Slow Start"]
   A --> C["Congestion Avoidance"]
   A --> D["Fast Retransmit & Recovery"]
@@ -174,7 +174,8 @@ export const generateMockAiResponse = (message = '', mode = 'study', studentName
   const isMindmap = mode === 'mindmap' || /mind\s*map|mindmap|concept\s*map|flowchart|diagram/i.test(message);
 
   if (isMindmap) {
-    return { reply: `:::MERMAID_Start:::${pickMindmap(message)}:::MERMAID_End:::`, offline: true };
+    const brief = topic ? `### 📚 Study Brief: ${topic.title}\n${topic.body}\n\n` : '';
+    return { reply: `${brief}:::MERMAID_Start:::${pickMindmap(message)}:::MERMAID_End:::`, offline: true };
   }
 
   if (mode === 'tutor') {

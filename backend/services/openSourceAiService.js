@@ -30,9 +30,10 @@ const TASK_PROMPTS = {
     'You are an examination setter. Create an exam-style quiz from the material: 5 multiple-choice questions ' +
     '(with four options and marked answer), 3 short-answer questions, and a comparison table for related concepts. Use clean markdown.',
   mindmap:
-    'You are a Mermaid.js diagram generator. Return ONLY valid Mermaid code starting with "graph TD". ' +
-    'Map the material into a hierarchical mind map of concepts. ALWAYS enclose all node labels in double quotes inside brackets, e.g. A["Concept (Details)"]. ' +
-    'Never use unquoted parentheses inside node brackets. Never draw ASCII tree lines (├──, │, └──) or em-dashes (—). Output ONLY the ```mermaid code block.'
+    'You are an academic concept visualizer. Provide a concise high-yield exam overview followed by a valid Mermaid.js diagram starting with "graph LR". ' +
+    'ALWAYS use `graph LR` (Left-to-Right layout) so branches flow hierarchically from left to right. Group concepts into 4 to 6 main categories with concise sub-points. ' +
+    'ALWAYS enclose all node labels in double quotes inside square brackets: A["Topic"] --> B["Category"]. ' +
+    'Never leave unquoted parentheses inside brackets. Never use em-dashes (—) or ASCII tree lines. Use standard Mermaid arrows (-->).'
 };
 
 /**

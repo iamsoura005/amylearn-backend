@@ -31,13 +31,18 @@ const SYSTEM_PROMPTS = {
     'Be friendly, encouraging and concise.' +
     FORMAT_INSTRUCTIONS,
   mindmap:
-    'You generate valid, compile-ready Mermaid.js diagrams. Output ONLY a ```mermaid\ngraph TD\n...``` code block.\n' +
-    'MANDATORY RULES:\n' +
-    '1. Hierarchical, clean tree of concepts starting from the central topic.\n' +
-    '2. ALWAYS enclose every single node label in double quotes inside brackets: e.g. A["Core Topic"] --> B["Subtopic (with details)"].\n' +
-    '3. NEVER leave unquoted parentheses, colons, commas or slashes inside node brackets.\n' +
-    '4. NEVER draw ASCII tree lines (├──, │, └──) or use em-dashes (—). Only use standard Mermaid arrows (--> or ---).\n' +
-    '5. Return ONLY the ```mermaid code block, with absolutely zero prose, greeting, or explanation outside the block.',
+    'You are an expert academic study assistant and concept visualizer. ' +
+    'Structure your response in two parts:\n' +
+    '1. A concise, high-yield **Exam Brief** (2-3 structured bullet points or short paragraphs explaining the core concept, key formula/rule, and intuition).\n' +
+    '2. A clean, valid Mermaid.js concept tree diagram starting with ```mermaid\ngraph LR\n...\n```\n\n' +
+    'CRITICAL MERMAID RULES:\n' +
+    '- ALWAYS use `graph LR` (Left-to-Right layout) so branches flow hierarchically from left to right instead of exploding horizontally into flat bar-graphs.\n' +
+    '- Group concepts into 4 to 6 main thematic categories branching from the central topic.\n' +
+    '- ALWAYS enclose every node label in double quotes inside square brackets: A["Core Topic"] --> B["Subtopic (details)"].\n' +
+    '- Keep node labels concise (under 8 words per node) for crystal clarity.\n' +
+    '- NEVER leave unquoted parentheses, colons, commas, or slashes inside node brackets.\n' +
+    '- NEVER use em-dashes (—) or ASCII tree lines (├──, │, └──). Use standard Mermaid arrows (-->).\n' +
+    '- Close the mermaid block with ``` and provide 2-3 bulleted High-Yield Exam Tips below it.',
   default:
     'You are a supportive, high-clarity academic study companion inside the AmyLearn platform. ' +
     'Provide structured, well-formatted explanations personalized for the learner with concrete examples.' +
@@ -50,19 +55,22 @@ function cleanMermaidCode(raw) {
   code = code.split('\n').filter((line) => !/^mermaid\s*$/i.test(line.trim())).join('\n');
   code = code.replace(/\|>/g, '|');
 
+  // Convert wide top-down graphs to Left-to-Right (LR) so mind maps never flatten into thin bar-graphs
+  code = code.replace(/^\s*(?:graph|flowchart)\s+(?:TD|TB)\b/i, 'graph LR');
+
   // Fix em-dashes and en-dashes in connection arrows and text
   code = code.replace(/[\u2014\u2013]{2,}>/g, '-->');
   code = code.replace(/[\u2014\u2013]>/g, '-->');
   code = code.replace(/[\u2014\u2013]{2,}/g, '---');
   code = code.replace(/[\u2014\u2013]/g, '-');
 
-  // Strip duplicate headers like graph TD\nflowchart TD or graph TD\nmindmap
+  // Strip duplicate headers like graph LR\nflowchart LR or graph LR\nmindmap
   code = code.replace(/^\s*graph\s+[A-Z]{2}\s+(graph|flowchart|mindmap)/i, '$1');
 
-  // Ensure diagram type header exists
+  // Ensure diagram type header exists; default to graph LR for clean mind maps
   const isKnownType = /^\s*(graph|flowchart|mindmap|classDiagram|sequenceDiagram|erDiagram|gantt|pie|gitGraph|stateDiagram)\b/i.test(code);
   if (!isKnownType) {
-    code = `graph TD\n${code}`;
+    code = `graph LR\n${code}`;
   }
 
   // Quote unquoted node labels with special characters (parentheses, colons, slashes, dashes, commas)
@@ -118,10 +126,11 @@ const chat = asyncHandler(async (req, res) => {
   try {
     const reply = await generateTutorResponse(systemInstruction, fullMessage, 2500, isMindmapRequest ? 0.2 : 0.7);
     let output = reply;
-    if (isMindmapRequest) {
-      output = wrapMermaid(reply);
-    } else if (/```(?:mermaid)?\s*(graph|flowchart|mindmap)[\s\S]*?```/i.test(reply)) {
+    // If reply contains a mermaid code block, wrap ONLY that block with :::MERMAID_Start::: so surrounding text remains clean Markdown
+    if (/```(?:mermaid)?\s*[\s\S]*?```/i.test(reply)) {
       output = reply.replace(/```(?:mermaid)?\s*([\s\S]*?)```/gi, (_, c) => wrapMermaid(c));
+    } else if (isMindmapRequest) {
+      output = wrapMermaid(reply);
     }
     return res.json({ success: true, reply: output, mode });
   } catch (error) {
