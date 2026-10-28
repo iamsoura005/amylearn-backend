@@ -203,7 +203,7 @@ const summarizeFile = asyncHandler(async (req, res) => {
       imageBuffer,
       taskType,
       userPrompt: req.body.userPrompt || '',
-      studentName: req.user.name || '',
+      studentName: (req.user && req.user.name) || (req.body && req.body.studentName) || 'there',
       text
     });
     const summary = extractText(result);
